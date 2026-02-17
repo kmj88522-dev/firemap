@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🚒 소방용수 통합관제 v72</title>
+<title>🚒 소방용수 통합관제 v73</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -22,34 +22,33 @@
     #map-wrapper { flex:1; position: relative; z-index: 1; min-height: 250px; }
     #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
     
-    /* ✨ 오른쪽 패널(모바일 하단)을 기준으로 오버레이가 뜨도록 position: relative 설정 */
     #right-panel { width:45%; min-width:350px; background:white; border-left:1px solid #ccc; display:flex; flex-direction:column; z-index:1000; flex-shrink: 0; position: relative; }
     
-    /* 화면 전체를 가리는 모달 (담당자 선택용) */
     .overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:3000; display:none; justify-content:center; align-items:center; }
     .modal { background:white; width:95%; max-width:380px; padding:20px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5); border-top:5px solid #2980b9; max-height: 90vh; overflow-y: auto; }
     
-    /* ✨ 용수 상태 창 전용 디자인: 화면 전체가 아닌 패널 안쪽만 덮도록 설계 */
+    /* ✨ 팝업창 여백 대폭 축소 (한눈에 들어오게) */
     #status-overlay {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         background: #ffffff; z-index: 2000; display: none; flex-direction: column;
-        padding: 15px; overflow-y: auto; box-sizing: border-box;
+        padding: 10px 15px; overflow-y: auto; box-sizing: border-box;
     }
 
     #overlay-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:250px; overflow-y:auto; margin:15px 0; border:1px solid #eee; padding:10px; background:#f9f9f9;}
     .mgr-label { cursor:pointer; display:flex; align-items:center; font-size:0.9rem; padding:6px; border-radius:4px; background:white; border:1px solid #ddd;}
     
-    .btn-blue { width:100%; padding:10px; background:#2980b9; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.95rem;}
+    .btn-blue { width:100%; padding:8px; background:#2980b9; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
     .btn-blue:hover { background:#1f6391; }
-    .btn-gray { width:100%; padding:10px; background:#95a5a6; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.95rem; margin-top:5px;}
+    .btn-gray { width:100%; padding:8px; background:#95a5a6; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem; margin-top:5px;}
     .btn-green { width:100%; padding:10px; background:#27ae60; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
     
-    .modal-info-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left; margin-bottom: 10px; }
-    .modal-info-table th { background: #f1f2f6; padding: 6px 8px; border: 1px solid #ddd; color: #333; width: 30%; white-space: nowrap; }
-    .modal-info-table td { padding: 6px 8px; border: 1px solid #ddd; color: #2c3e50; font-weight: bold; word-break: break-all;}
+    /* ✨ 표와 버튼의 간격, 글씨 크기 압축 */
+    .modal-info-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left; margin-bottom: 8px; line-height: 1.2; }
+    .modal-info-table th { background: #f1f2f6; padding: 4px 6px; border: 1px solid #ddd; color: #333; width: 25%; white-space: nowrap; }
+    .modal-info-table td { padding: 4px 6px; border: 1px solid #ddd; color: #2c3e50; font-weight: bold; word-break: break-all;}
     
-    .status-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-    .status-select-btn { padding: 10px 5px; border:none; border-radius:5px; color:white; font-weight:bold; cursor:pointer; font-size:0.9rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    .status-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+    .status-select-btn { padding: 8px 5px; border:none; border-radius:5px; color:white; font-weight:bold; cursor:pointer; font-size:0.85rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     
     .badge-status { padding: 3px 0; border-radius: 3px; font-size: 0.7rem; font-weight: bold; color: white; cursor: pointer; border: none; width: 90%; margin: 0 auto; display: block; line-height: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
     .status-none { background: #95a5a6; } .status-good { background: #27ae60; } .status-warn { background: #f39c12; } .status-fail { background: #e74c3c; } 
@@ -80,13 +79,13 @@
     @media (max-width: 768px) {
         #container { flex-direction: column; overflow: hidden; height: calc(100vh - 40px); }
         #left-panel { flex-direction: row; width: 100%; height: auto; padding: 5px; border-right: none; border-bottom: 2px solid #2980b9; gap: 5px; align-items: center;}
-        #drop-zone { flex: 1; padding: 5px; min-height: 50px; flex-direction: row; gap: 10px; margin: 0; }
+        #drop-zone { flex: 1; padding: 5px; min-height: 40px; flex-direction: row; gap: 10px; margin: 0; }
         #drop-zone .icon { font-size: 1.5rem; margin: 0; }
         #file-status { font-size: 0.8rem; text-align: left; }
         .action-btns { display: flex; flex-direction: column; gap: 3px; width: 120px; }
         .action-btns button { padding: 5px; font-size: 0.75rem; margin: 0; }
         #map-wrapper { flex: 1; min-height: 40vh; width: 100%; }
-        /* 모바일에서는 하단 창 높이를 조금 늘려서 조작하기 편하게 만듭니다. */
+        /* 패널 높이 조절 */
         #right-panel { height: 40vh; width: 100%; border-left: none; border-top: 2px solid #34495e; }
     }
 </style>
@@ -112,7 +111,7 @@
 </div>
 
 <div id="header">
-    <h3 style="margin:0; font-size:1.1rem;">🚒 소방용수 통합관제 <span style="font-size:0.8rem; font-weight:normal; color:#bdc3c7;">v72</span></h3>
+    <h3 style="margin:0; font-size:1.1rem;">🚒 소방용수 통합관제 <span style="font-size:0.8rem; font-weight:normal; color:#bdc3c7;">v73</span></h3>
 </div>
 
 <div id="container">
@@ -134,7 +133,7 @@
     </div>
 
     <div id="right-panel">
-        <div style="padding:6px 10px; background:#34495e; color:white; font-size:0.85rem; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
+        <div style="padding:4px 10px; background:#34495e; color:white; font-size:0.85rem; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
             <span>📋 용수 목록</span>
             <span id="count-badge" style="background:#e67e22; padding:2px 8px; border-radius:12px; font-size:0.75rem;">0건</span>
         </div>
@@ -158,18 +157,16 @@
         </div>
 
         <div id="status-overlay">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #ff9f43; padding-bottom: 5px; margin-bottom: 10px;">
-                <h3 id="modal-shortNum" style="margin:0; color:#2c3e50; font-size:1.05rem;">📋 용수 상세정보</h3>
-                <button onclick="closeStatusModal()" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">❌</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #ff9f43; padding-bottom: 3px; margin-bottom: 8px;">
+                <h3 id="modal-shortNum" style="margin:0; color:#2c3e50; font-size:0.95rem;">📋 상세정보 및 점검</h3>
+                <button onclick="closeStatusModal()" style="background:none; border:none; font-size:1.1rem; cursor:pointer;">❌</button>
             </div>
             
             <div id="default-info-area">
                 <table class="modal-info-table">
                     <tr><th>담당자</th><td id="modal-mgr"></td></tr>
-                    <tr><th>도로명</th><td id="modal-road"></td></tr>
-                    <tr><th>지번</th><td id="modal-jibun"></td></tr>
-                    <tr><th>상세위치</th><td id="modal-detail"></td></tr>
-                    <tr><th>기타시설</th><td>표지: <span id="modal-sign"></span> / 제수: <span id="modal-valve"></span> / 보호: <span id="modal-guard"></span></td></tr>
+                    <tr><th>위치</th><td><span id="modal-road"></span><br><span id="modal-jibun" style="font-size:0.7rem; color:#7f8c8d;"></span></td></tr>
+                    <tr><th>상세/시설</th><td><span id="modal-detail"></span><br><span style="font-size:0.7rem; color:#7f8c8d;">(표지:<span id="modal-sign"></span> 제수:<span id="modal-valve"></span> 보호:<span id="modal-guard"></span>)</span></td></tr>
                 </table>
                 <div class="status-btn-grid">
                     <button class="status-select-btn" style="background:#27ae60;" onclick="saveStatus('양호')">🟢 양호</button>
@@ -177,17 +174,17 @@
                     <button class="status-select-btn" style="background:#e74c3c;" onclick="saveStatus('고장')">🔴 고장</button>
                     <button class="status-select-btn" style="background:#95a5a6;" onclick="saveStatus('미점검')">⚪ 초기화</button>
                 </div>
-                <button class="btn-blue" style="margin-top:5px; background:#3498db;" onclick="triggerCamera()">📷 현장 사진 촬영 및 표시</button>
+                <button class="btn-blue" style="margin-top:2px; background:#3498db;" onclick="triggerCamera()">📷 현장 사진 촬영 및 표시</button>
             </div>
 
             <div id="photo-editor-area" style="display:none;">
-                <p style="font-size:0.8rem; color:#e67e22; margin: 5px 0; font-weight:bold;">💡 사진 속 제수변 위치를 터치하여 표시하세요.</p>
+                <p style="font-size:0.75rem; color:#e67e22; margin: 2px 0; font-weight:bold;">💡 사진 속 제수변 위치를 터치하여 표시하세요.</p>
                 <div id="photo-canvas-container">
                     <canvas id="photo-canvas"></canvas>
                 </div>
-                <div style="display:flex; gap:5px; margin-top:10px;">
-                    <button class="btn-green" style="flex:1;" onclick="saveEditedPhoto()">💾 사진 저장</button>
-                    <button class="btn-gray" style="flex:1; background:#e74c3c;" onclick="cancelPhotoEdit()">취소</button>
+                <div style="display:flex; gap:5px; margin-top:5px;">
+                    <button class="btn-green" style="flex:1;" onclick="saveEditedPhoto()">💾 저장</button>
+                    <button class="btn-gray" style="flex:1; background:#e74c3c;" onclick="cancelPhotoEdit()">❌ 취소</button>
                 </div>
             </div>
         </div>
@@ -250,7 +247,8 @@
             await workbook.xlsx.load(buffer);
             worksheet = workbook.worksheets[0];
             loadedRows = [];
-            worksheet.eachRow((row, rowNumber) => { if(rowNumber >= 3) loadedRows.push({ row: row, num: rowNumber, status: '미점검', shortNum: '', mgrColor: '#333', marker: null, mgrName: '' }); });
+            // ✨ memo 필드 추가
+            worksheet.eachRow((row, rowNumber) => { if(rowNumber >= 3) loadedRows.push({ row: row, num: rowNumber, status: '미점검', shortNum: '', mgrColor: '#333', marker: null, mgrName: '', memo: '' }); });
             document.getElementById('file-status').innerHTML = `<span style="color:#2980b9;">${file.name}</span>`;
             showManagerOverlay();
         } catch(err) { alert("엑셀 파일을 읽는 중 오류가 발생했습니다."); } 
@@ -303,10 +301,17 @@
                     marker.on('click', (e) => { highlightRow(item.num); openStatusModal(e, item.num, shortNum); });
                     item.marker = marker; markers.push(marker); bounds.push([lat, lng]); validCount++;
                 }
+                
                 let statusClass = 'status-none'; if(item.status === '양호') statusClass = 'status-good'; if(item.status === '불량') statusClass = 'status-warn'; if(item.status === '고장') statusClass = 'status-fail';
+                
                 const tr = document.createElement('tr'); tr.id = `row-${item.num}`;
                 if(isValidLocation) tr.style.backgroundColor = getLightColor(mgrColor); else tr.classList.add('error-row');
-                tr.innerHTML = `<td><b>${shortNum}</b></td><td onclick="event.stopPropagation()"><button class="badge-status ${statusClass}" onclick="openStatusModal(event, ${item.num}, '${shortNum}')">${item.status}</button></td><td style="color:${mgrColor}; font-weight:bold;">${mgr}</td><td>${road}</td><td>${jibun}</td><td style="font-size:0.7rem;">${detail}</td><td>${sign}</td><td>${valve}</td><td>${guard}</td>`;
+                
+                // 메모가 있으면 아이콘(💬) 표시
+                let statusText = item.status;
+                if(item.memo) statusText += " 💬";
+
+                tr.innerHTML = `<td><b>${shortNum}</b></td><td onclick="event.stopPropagation()"><button class="badge-status ${statusClass}" onclick="openStatusModal(event, ${item.num}, '${shortNum}')">${statusText}</button></td><td style="color:${mgrColor}; font-weight:bold;">${mgr}</td><td>${road}</td><td>${jibun}</td><td style="font-size:0.7rem;">${detail}</td><td>${sign}</td><td>${valve}</td><td>${guard}</td>`;
                 tr.onclick = () => { if(isValidLocation) map.setView([lat, lng], 18); highlightRow(item.num); };
                 tbody.appendChild(tr);
             }
@@ -333,31 +338,57 @@
         const guard = (r.getCell(COL.GUARD).value || "").toString() || '-';
 
         document.getElementById('modal-shortNum').innerText = `[${shortNum}번] 정보 및 점검`;
-        document.getElementById('modal-mgr').innerText = mgr; document.getElementById('modal-road').innerText = road;
-        document.getElementById('modal-jibun').innerText = jibun; document.getElementById('modal-detail').innerText = detail;
-        document.getElementById('modal-sign').innerText = sign; document.getElementById('modal-valve').innerText = valve; document.getElementById('modal-guard').innerText = guard;
+        document.getElementById('modal-mgr').innerText = mgr; 
+        document.getElementById('modal-road').innerText = road;
+        document.getElementById('modal-jibun').innerText = jibun; 
+        document.getElementById('modal-detail').innerText = detail;
+        document.getElementById('modal-sign').innerText = sign; 
+        document.getElementById('modal-valve').innerText = valve; 
+        document.getElementById('modal-guard').innerText = guard;
 
         document.getElementById('default-info-area').style.display = 'block';
         document.getElementById('photo-editor-area').style.display = 'none';
         clearCanvas();
 
-        // ✨ 팝업창을 여는 방식 변경 (모달창이 아닌 패널 덮어씌우기)
         document.getElementById('status-overlay').style.display = 'flex';
     }
 
     function closeStatusModal() { document.getElementById('status-overlay').style.display = 'none'; currentEditItem = null; }
     
+    // ✨ 상태 저장 및 메모 입력 로직 추가
     function saveStatus(newStatus) {
         if(currentEditItem) {
+            let memo = "";
+            
+            // 불량이나 고장을 누르면 사유 입력창 띄우기
+            if(newStatus === '불량' || newStatus === '고장') {
+                memo = prompt(`[${newStatus}] 상태를 선택하셨습니다.\n간단한 사유(메모)를 입력해 주세요:`, currentEditItem.memo || "");
+                if(memo === null) return; // 사용자가 취소를 누르면 상태 변경 안 함
+            } else {
+                // 양호나 미점검으로 바꾸면 기존 메모 초기화 유무 확인 (여기선 자동으로 비움)
+                memo = ""; 
+            }
+
             currentEditItem.status = newStatus;
+            currentEditItem.memo = memo;
+
             const rowBtn = document.querySelector(`#row-${currentEditItem.num} .badge-status`);
-            if(rowBtn) { rowBtn.innerText = newStatus; rowBtn.className = 'badge-status'; if(newStatus === '양호') rowBtn.classList.add('status-good'); else if(newStatus === '불량') rowBtn.classList.add('status-warn'); else if(newStatus === '고장') rowBtn.classList.add('status-fail'); else rowBtn.classList.add('status-none'); }
-            if(currentEditItem.marker) { const newIcon = createMarkerIcon(currentEditItem.shortNum, currentEditItem.mgrColor, newStatus); currentEditItem.marker.setIcon(newIcon); }
-            closeStatusModal(); // 상태를 저장하면 창이 닫히며 지도를 다시 볼 수 있습니다.
+            if(rowBtn) { 
+                rowBtn.innerText = newStatus + (memo ? " 💬" : ""); // 메모가 있으면 아이콘 표시
+                rowBtn.className = 'badge-status'; 
+                if(newStatus === '양호') rowBtn.classList.add('status-good'); 
+                else if(newStatus === '불량') rowBtn.classList.add('status-warn'); 
+                else if(newStatus === '고장') rowBtn.classList.add('status-fail'); 
+                else rowBtn.classList.add('status-none'); 
+            }
+            if(currentEditItem.marker) { 
+                const newIcon = createMarkerIcon(currentEditItem.shortNum, currentEditItem.mgrColor, newStatus); 
+                currentEditItem.marker.setIcon(newIcon); 
+            }
+            closeStatusModal(); 
         }
     }
 
-    // 사진 촬영 및 캔버스 로직
     const canvas = document.getElementById('photo-canvas');
     const ctx = canvas.getContext('2d');
     const cameraInput = document.getElementById('cameraInput');
@@ -367,7 +398,7 @@
 
     cameraInput.addEventListener('change', function(e) {
         if (e.target.files && e.target.files[0]) {
-            document.getElementById('loading-msg').innerText = "사진 처리 중...";
+            document.getElementById('loading-msg').innerText = "사진 띄우는 중...";
             document.getElementById('loading').style.display = 'flex';
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -428,7 +459,7 @@
         link.download = fileName;
         link.href = canvas.toDataURL('image/jpeg', 0.9); 
         link.click();
-        closeStatusModal(); // 저장 완료 후 창 닫기
+        closeStatusModal(); 
     }
 
     function cancelPhotoEdit() {
@@ -442,22 +473,29 @@
 
     function resetWork() { if(!confirm("진행 중인 모든 점검 내용과 목록이 초기화됩니다. 계속하시겠습니까?")) return; workbook = null; worksheet = null; loadedRows = []; currentEditItem = null; markers.forEach(m => map.removeLayer(m)); markers = []; document.getElementById('listBody').innerHTML = '<tr><td colspan="9" style="padding:40px; color:#aaa; text-align:center;">엑셀 파일을 로드해주세요.</td></tr>'; document.getElementById('file-status').innerHTML = '파일을 터치하거나<br>드래그하세요'; document.getElementById('count-badge').innerText = '0건'; document.getElementById('excelFile').value = ''; map.setView([35.32, 126.98], 11); }
 
+    // ✨ 엑셀 저장 시 '특이사항(메모)' 열 추가
     async function exportExcel() {
         if(loadedRows.length === 0) return alert("내보낼 데이터가 없습니다. 파일을 먼저 로드하세요.");
         document.getElementById('loading-msg').innerText = "엑셀 생성 중..."; document.getElementById('loading').style.display = 'flex';
         try {
             const newWb = new ExcelJS.Workbook(); const newWs = newWb.addWorksheet('점검결과');
-            newWs.addRow(['연번', '번호', '점검상태', '담당자', '도로명', '지번', '상세위치', '표지', '제수', '보호']); newWs.getRow(1).font = { bold: true }; newWs.getRow(1).alignment = { horizontal: 'center' };
+            
+            // 헤더에 '특이사항' 추가
+            newWs.addRow(['연번', '번호', '점검상태', '특이사항', '담당자', '도로명', '지번', '상세위치', '표지', '제수', '보호']); 
+            newWs.getRow(1).font = { bold: true }; newWs.getRow(1).alignment = { horizontal: 'center' };
             const targetNames = Array.from(document.querySelectorAll('.mgr-check:checked')).map(c => c.value);
             let count = 1;
             loadedRows.forEach(item => {
                 const r = item.row; const mgr = (r.getCell(COL.MGR).value || "").toString().trim();
                 if(targetNames.includes(mgr) || targetNames.length === 0) {
                     let fullNum = (r.getCell(COL.NUM).value || "").toString(); let road = (r.getCell(COL.ROAD).value || "").toString(); let jibun = (r.getCell(COL.JIBUN).value || "").toString(); let detail = (r.getCell(COL.DETAIL).value || "").toString(); let sign = (r.getCell(COL.SIGN).value || "").toString(); let valve = (r.getCell(COL.VALVE).value || "").toString(); let guard = (r.getCell(COL.GUARD).value || "").toString();
-                    newWs.addRow([count++, fullNum, item.status, mgr, road, jibun, detail, sign, valve, guard]);
+                    
+                    // 데이터 행에 item.memo 추가
+                    newWs.addRow([count++, fullNum, item.status, item.memo || "", mgr, road, jibun, detail, sign, valve, guard]);
                 }
             });
-            newWs.columns = [{ width: 6 }, { width: 15 }, { width: 12 }, { width: 10 }, { width: 25 }, { width: 25 }, { width: 30 }, { width: 10 }, { width: 10 }, { width: 10 }];
+            // 열 너비 조절
+            newWs.columns = [{ width: 6 }, { width: 15 }, { width: 10 }, { width: 25 }, { width: 10 }, { width: 25 }, { width: 25 }, { width: 30 }, { width: 10 }, { width: 10 }, { width: 10 }];
             const buffer = await newWb.xlsx.writeBuffer(); const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); const today = new Date().toISOString().slice(2,10).replace(/-/g,''); link.download = `소방용수_점검결과_${today}.xlsx`; link.click(); alert("점검결과 엑셀 파일이 다운로드되었습니다.");
         } catch(err) { alert("엑셀 생성 중 오류: " + err.message); } finally { document.getElementById('loading').style.display = 'none'; document.getElementById('loading-msg').innerText = "처리 중..."; }
     }
