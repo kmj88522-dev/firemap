@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🚒 소방용수 통합관제 v71</title>
+<title>🚒 소방용수 통합관제 v72</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -18,12 +18,24 @@
     #drop-zone:hover, #drop-zone.dragover { background: #e0f7fa; border-color: #00bcd4; color: #00838f; }
     #drop-zone .icon { font-size: 2rem; margin-bottom: 5px; }
     #file-status { font-size: 0.85rem; font-weight: bold; line-height: 1.3; word-break: break-all;}
+    
     #map-wrapper { flex:1; position: relative; z-index: 1; min-height: 250px; }
     #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
-    #right-panel { width:45%; min-width:350px; background:white; border-left:1px solid #ccc; display:flex; flex-direction:column; z-index:1000; flex-shrink: 0; }
     
+    /* ✨ 오른쪽 패널(모바일 하단)을 기준으로 오버레이가 뜨도록 position: relative 설정 */
+    #right-panel { width:45%; min-width:350px; background:white; border-left:1px solid #ccc; display:flex; flex-direction:column; z-index:1000; flex-shrink: 0; position: relative; }
+    
+    /* 화면 전체를 가리는 모달 (담당자 선택용) */
     .overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:3000; display:none; justify-content:center; align-items:center; }
     .modal { background:white; width:95%; max-width:380px; padding:20px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5); border-top:5px solid #2980b9; max-height: 90vh; overflow-y: auto; }
+    
+    /* ✨ 용수 상태 창 전용 디자인: 화면 전체가 아닌 패널 안쪽만 덮도록 설계 */
+    #status-overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: #ffffff; z-index: 2000; display: none; flex-direction: column;
+        padding: 15px; overflow-y: auto; box-sizing: border-box;
+    }
+
     #overlay-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:250px; overflow-y:auto; margin:15px 0; border:1px solid #eee; padding:10px; background:#f9f9f9;}
     .mgr-label { cursor:pointer; display:flex; align-items:center; font-size:0.9rem; padding:6px; border-radius:4px; background:white; border:1px solid #ddd;}
     
@@ -32,7 +44,7 @@
     .btn-gray { width:100%; padding:10px; background:#95a5a6; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.95rem; margin-top:5px;}
     .btn-green { width:100%; padding:10px; background:#27ae60; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
     
-    .modal-info-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left; margin-bottom: 15px; }
+    .modal-info-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; text-align: left; margin-bottom: 10px; }
     .modal-info-table th { background: #f1f2f6; padding: 6px 8px; border: 1px solid #ddd; color: #333; width: 30%; white-space: nowrap; }
     .modal-info-table td { padding: 6px 8px; border: 1px solid #ddd; color: #2c3e50; font-weight: bold; word-break: break-all;}
     
@@ -74,7 +86,8 @@
         .action-btns { display: flex; flex-direction: column; gap: 3px; width: 120px; }
         .action-btns button { padding: 5px; font-size: 0.75rem; margin: 0; }
         #map-wrapper { flex: 1; min-height: 40vh; width: 100%; }
-        #right-panel { height: 35vh; width: 100%; border-left: none; border-top: 2px solid #34495e; }
+        /* 모바일에서는 하단 창 높이를 조금 늘려서 조작하기 편하게 만듭니다. */
+        #right-panel { height: 40vh; width: 100%; border-left: none; border-top: 2px solid #34495e; }
     }
 </style>
 </head>
@@ -98,44 +111,8 @@
     </div>
 </div>
 
-<div id="status-overlay" class="overlay">
-    <div class="modal">
-        <h3 id="modal-shortNum" style="margin-top:0; color:#2c3e50; border-bottom: 2px solid #ff9f43; padding-bottom: 5px;">📋 용수 상세정보</h3>
-        
-        <div id="default-info-area">
-            <table class="modal-info-table">
-                <tr><th>담당자</th><td id="modal-mgr"></td></tr>
-                <tr><th>도로명</th><td id="modal-road"></td></tr>
-                <tr><th>지번</th><td id="modal-jibun"></td></tr>
-                <tr><th>상세위치</th><td id="modal-detail"></td></tr>
-                <tr><th>기타시설</th><td>표지: <span id="modal-sign"></span> / 제수: <span id="modal-valve"></span> / 보호: <span id="modal-guard"></span></td></tr>
-            </table>
-            <div class="status-btn-grid">
-                <button class="status-select-btn" style="background:#27ae60;" onclick="saveStatus('양호')">🟢 양호</button>
-                <button class="status-select-btn" style="background:#f39c12;" onclick="saveStatus('불량')">🟠 불량</button>
-                <button class="status-select-btn" style="background:#e74c3c;" onclick="saveStatus('고장')">🔴 고장</button>
-                <button class="status-select-btn" style="background:#95a5a6;" onclick="saveStatus('미점검')">⚪ 초기화</button>
-            </div>
-            <button class="btn-blue" style="margin-top:5px; background:#3498db;" onclick="triggerCamera()">📷 현장 사진 촬영 및 표시</button>
-        </div>
-
-        <div id="photo-editor-area" style="display:none;">
-            <p style="font-size:0.8rem; color:#e67e22; margin: 5px 0; font-weight:bold;">💡 사진 속 제수변 위치를 터치하여 표시하세요.</p>
-            <div id="photo-canvas-container">
-                <canvas id="photo-canvas"></canvas>
-            </div>
-            <div style="display:flex; gap:5px; margin-top:10px;">
-                <button class="btn-green" style="flex:1;" onclick="saveEditedPhoto()">💾 사진 저장</button>
-                <button class="btn-gray" style="flex:1; background:#e74c3c;" onclick="cancelPhotoEdit()">❌ 취소</button>
-            </div>
-        </div>
-        
-        <button class="btn-gray" style="margin-top:10px; width: 100%;" onclick="closeStatusModal()">닫기</button>
-    </div>
-</div>
-
 <div id="header">
-    <h3 style="margin:0; font-size:1.1rem;">🚒 소방용수 통합관제 <span style="font-size:0.8rem; font-weight:normal; color:#bdc3c7;">v71</span></h3>
+    <h3 style="margin:0; font-size:1.1rem;">🚒 소방용수 통합관제 <span style="font-size:0.8rem; font-weight:normal; color:#bdc3c7;">v72</span></h3>
 </div>
 
 <div id="container">
@@ -178,6 +155,41 @@
                 </thead>
                 <tbody id="listBody"><tr><td colspan="9" style="padding:30px; color:#aaa; text-align:center;">엑셀 파일을 로드해주세요.</td></tr></tbody>
             </table>
+        </div>
+
+        <div id="status-overlay">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #ff9f43; padding-bottom: 5px; margin-bottom: 10px;">
+                <h3 id="modal-shortNum" style="margin:0; color:#2c3e50; font-size:1.05rem;">📋 용수 상세정보</h3>
+                <button onclick="closeStatusModal()" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">❌</button>
+            </div>
+            
+            <div id="default-info-area">
+                <table class="modal-info-table">
+                    <tr><th>담당자</th><td id="modal-mgr"></td></tr>
+                    <tr><th>도로명</th><td id="modal-road"></td></tr>
+                    <tr><th>지번</th><td id="modal-jibun"></td></tr>
+                    <tr><th>상세위치</th><td id="modal-detail"></td></tr>
+                    <tr><th>기타시설</th><td>표지: <span id="modal-sign"></span> / 제수: <span id="modal-valve"></span> / 보호: <span id="modal-guard"></span></td></tr>
+                </table>
+                <div class="status-btn-grid">
+                    <button class="status-select-btn" style="background:#27ae60;" onclick="saveStatus('양호')">🟢 양호</button>
+                    <button class="status-select-btn" style="background:#f39c12;" onclick="saveStatus('불량')">🟠 불량</button>
+                    <button class="status-select-btn" style="background:#e74c3c;" onclick="saveStatus('고장')">🔴 고장</button>
+                    <button class="status-select-btn" style="background:#95a5a6;" onclick="saveStatus('미점검')">⚪ 초기화</button>
+                </div>
+                <button class="btn-blue" style="margin-top:5px; background:#3498db;" onclick="triggerCamera()">📷 현장 사진 촬영 및 표시</button>
+            </div>
+
+            <div id="photo-editor-area" style="display:none;">
+                <p style="font-size:0.8rem; color:#e67e22; margin: 5px 0; font-weight:bold;">💡 사진 속 제수변 위치를 터치하여 표시하세요.</p>
+                <div id="photo-canvas-container">
+                    <canvas id="photo-canvas"></canvas>
+                </div>
+                <div style="display:flex; gap:5px; margin-top:10px;">
+                    <button class="btn-green" style="flex:1;" onclick="saveEditedPhoto()">💾 사진 저장</button>
+                    <button class="btn-gray" style="flex:1; background:#e74c3c;" onclick="cancelPhotoEdit()">취소</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -320,7 +332,7 @@
         const valve = (r.getCell(COL.VALVE).value || "").toString() || '-';
         const guard = (r.getCell(COL.GUARD).value || "").toString() || '-';
 
-        document.getElementById('modal-shortNum').innerText = `[${shortNum}번 용수] 정보 및 점검`;
+        document.getElementById('modal-shortNum').innerText = `[${shortNum}번] 정보 및 점검`;
         document.getElementById('modal-mgr').innerText = mgr; document.getElementById('modal-road').innerText = road;
         document.getElementById('modal-jibun').innerText = jibun; document.getElementById('modal-detail').innerText = detail;
         document.getElementById('modal-sign').innerText = sign; document.getElementById('modal-valve').innerText = valve; document.getElementById('modal-guard').innerText = guard;
@@ -329,17 +341,19 @@
         document.getElementById('photo-editor-area').style.display = 'none';
         clearCanvas();
 
+        // ✨ 팝업창을 여는 방식 변경 (모달창이 아닌 패널 덮어씌우기)
         document.getElementById('status-overlay').style.display = 'flex';
     }
 
     function closeStatusModal() { document.getElementById('status-overlay').style.display = 'none'; currentEditItem = null; }
+    
     function saveStatus(newStatus) {
         if(currentEditItem) {
             currentEditItem.status = newStatus;
             const rowBtn = document.querySelector(`#row-${currentEditItem.num} .badge-status`);
             if(rowBtn) { rowBtn.innerText = newStatus; rowBtn.className = 'badge-status'; if(newStatus === '양호') rowBtn.classList.add('status-good'); else if(newStatus === '불량') rowBtn.classList.add('status-warn'); else if(newStatus === '고장') rowBtn.classList.add('status-fail'); else rowBtn.classList.add('status-none'); }
             if(currentEditItem.marker) { const newIcon = createMarkerIcon(currentEditItem.shortNum, currentEditItem.mgrColor, newStatus); currentEditItem.marker.setIcon(newIcon); }
-            closeStatusModal();
+            closeStatusModal(); // 상태를 저장하면 창이 닫히며 지도를 다시 볼 수 있습니다.
         }
     }
 
@@ -414,7 +428,7 @@
         link.download = fileName;
         link.href = canvas.toDataURL('image/jpeg', 0.9); 
         link.click();
-        closeStatusModal();
+        closeStatusModal(); // 저장 완료 후 창 닫기
     }
 
     function cancelPhotoEdit() {
@@ -426,7 +440,7 @@
 
     function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); originalImage = null; }
 
-    function resetWork() { if(!confirm("진행 중인 모든 점검 내용과 목록이 초기화됩니다. 계속하시겠습니까?")) return; workbook = null; worksheet = null; loadedRows = []; currentEditItem = null; markers.forEach(m => map.removeLayer(m)); markers = []; document.getElementById('listBody').innerHTML = '<tr><td colspan="9" style="padding:40px; color:#aaa; text-align:center;">엑셀 파일을 로드해주세요.</td></tr>'; document.getElementById('file-status').innerHTML = '파일을 클릭하거나<br>드래그하세요'; document.getElementById('count-badge').innerText = '0건'; document.getElementById('excelFile').value = ''; map.setView([35.32, 126.98], 11); }
+    function resetWork() { if(!confirm("진행 중인 모든 점검 내용과 목록이 초기화됩니다. 계속하시겠습니까?")) return; workbook = null; worksheet = null; loadedRows = []; currentEditItem = null; markers.forEach(m => map.removeLayer(m)); markers = []; document.getElementById('listBody').innerHTML = '<tr><td colspan="9" style="padding:40px; color:#aaa; text-align:center;">엑셀 파일을 로드해주세요.</td></tr>'; document.getElementById('file-status').innerHTML = '파일을 터치하거나<br>드래그하세요'; document.getElementById('count-badge').innerText = '0건'; document.getElementById('excelFile').value = ''; map.setView([35.32, 126.98], 11); }
 
     async function exportExcel() {
         if(loadedRows.length === 0) return alert("내보낼 데이터가 없습니다. 파일을 먼저 로드하세요.");
@@ -448,57 +462,23 @@
         } catch(err) { alert("엑셀 생성 중 오류: " + err.message); } finally { document.getElementById('loading').style.display = 'none'; document.getElementById('loading-msg').innerText = "처리 중..."; }
     }
 
-    // ============================================================
-    // ✨✨✨ v71 변경점: GPS 동선 기록(선) 제거 및 내 위치 표시 기능만 유지 ✨✨✨
-    // ============================================================
-    let gpsWatchId = null; 
-    let userMarker = null; 
-
+    let gpsWatchId = null; let userMarker = null; 
     function toggleGPS() {
         const btn = document.getElementById('gps-btn');
-        
-        // GPS가 켜져 있다면 끕니다.
         if (gpsWatchId) { 
-            navigator.geolocation.clearWatch(gpsWatchId); 
-            gpsWatchId = null; 
-            
-            // 지도에서 내 위치 마커를 지웁니다.
-            if (userMarker) {
-                map.removeLayer(userMarker);
-                userMarker = null;
-            }
-            
-            btn.innerText = "🎯 내 위치 표시"; 
-            btn.classList.remove('active'); 
-            return; 
+            navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; 
+            if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
+            btn.innerText = "🎯 내 위치 표시"; btn.classList.remove('active'); return; 
         }
-        
         if (!navigator.geolocation) return alert("스마트폰의 위치 서비스를 켜주세요.");
-
-        btn.innerText = "⏹️ 위치 표시 끄기"; 
-        btn.classList.add('active');
-        
-        // 내 위치를 실시간으로 추적하여 점만 이동시킵니다. (선은 그리지 않음)
+        btn.innerText = "⏹️ 위치 표시 끄기"; btn.classList.add('active');
         gpsWatchId = navigator.geolocation.watchPosition(
             (position) => {
                 const latlng = [position.coords.latitude, position.coords.longitude];
-                
-                if (!userMarker) { 
-                    // 처음 위치가 잡혔을 때 파란 점 생성
-                    userMarker = L.circleMarker(latlng, { 
-                        color: '#3498db', radius: 8, fillOpacity: 1, border: '2px solid white' 
-                    }).addTo(map); 
-                    map.setView(latlng, 17); 
-                } else { 
-                    // 이동 시 마커 위치만 업데이트 (선 기록 없음)
-                    userMarker.setLatLng(latlng); 
-                }
+                if (!userMarker) { userMarker = L.circleMarker(latlng, { color: '#3498db', radius: 8, fillOpacity: 1, border: '2px solid white' }).addTo(map); map.setView(latlng, 17); } 
+                else { userMarker.setLatLng(latlng); }
             },
-            (error) => { 
-                alert("GPS 위치를 가져올 수 없습니다. 스마트폰의 위치 설정(GPS)을 확인해주세요."); 
-                toggleGPS(); // 에러 시 GPS 기능 강제 종료
-            }, 
-            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            (error) => { alert("GPS 위치를 가져올 수 없습니다."); toggleGPS(); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
         );
     }
 
