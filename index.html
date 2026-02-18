@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🚒 소방용수 통합관제 v77</title>
+<title>🚒 소방용수 통합관제 v78</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -13,7 +13,6 @@
     
     #header { height:40px; background:#2c3e50; color:white; display:flex; align-items:center; padding:0 15px; border-bottom:3px solid #ff9f43; flex-shrink: 0; }
     
-    /* ✨ 실시간 동기화 표시등 애니메이션 */
     @keyframes blink { 0% { opacity:1; } 50% { opacity:0.3; } 100% { opacity:1; } }
     .sync-badge { font-size:0.7rem; background:#27ae60; padding:3px 8px; border-radius:12px; margin-left:10px; font-weight:bold; animation: blink 2s infinite; box-shadow: 0 0 5px #27ae60; }
 
@@ -27,12 +26,14 @@
     #map-wrapper { flex:1; position: relative; z-index: 1; min-height: 250px; }
     #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
     
-    #right-panel { width:45%; min-width:350px; background:white; border-left:1px solid #ccc; display:flex; flex-direction:column; z-index:1000; flex-shrink: 0; position: relative; }
+    /* ✨ 패널이 무조건 고정된 크기 안에서 스크롤되도록 overflow 속성 강화 */
+    #right-panel { width:45%; min-width:350px; background:white; border-left:1px solid #ccc; display:flex; flex-direction:column; z-index:1000; flex-shrink: 0; position: relative; overflow: hidden; }
     
     .overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:3000; display:none; justify-content:center; align-items:center; }
     .modal { background:white; width:95%; max-width:380px; padding:20px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5); border-top:5px solid #2980b9; max-height: 90vh; overflow-y: auto; }
     
-    #status-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff; z-index: 2000; display: none; flex-direction: column; padding: 10px 15px; overflow-y: auto; box-sizing: border-box; }
+    /* ✨ 팝업창도 absolute로 우측 패널 안에서만 100% 꽉 차게 고정 (밀림 현상 방지) */
+    #status-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; background: #ffffff; z-index: 2000; display: none; flex-direction: column; padding: 10px 15px; overflow-y: auto; box-sizing: border-box; }
 
     #overlay-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:250px; overflow-y:auto; margin:15px 0; border:1px solid #eee; padding:10px; background:#f9f9f9;}
     .mgr-label { cursor:pointer; display:flex; align-items:center; font-size:0.9rem; padding:6px; border-radius:4px; background:white; border:1px solid #ddd;}
@@ -42,6 +43,9 @@
     .btn-gray { width:100%; padding:8px; background:#95a5a6; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem; margin-top:5px;}
     .btn-green { width:100%; padding:10px; background:#27ae60; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
     
+    /* ✨ 상태별 제목 배경 효과를 위한 트랜지션 */
+    #modal-shortNum { transition: background 0.3s ease, color 0.3s ease; border-radius: 5px; }
+
     .modal-info-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left; margin-bottom: 8px; line-height: 1.2; }
     .modal-info-table th { background: #f1f2f6; padding: 4px 6px; border: 1px solid #ddd; color: #333; width: 25%; white-space: nowrap; }
     .modal-info-table td { padding: 4px 6px; border: 1px solid #ddd; color: #2c3e50; font-weight: bold; word-break: break-all;}
@@ -75,16 +79,17 @@
     #photo-canvas-container { width: 100%; overflow: hidden; margin-top: 10px; border: 2px solid #ddd; display: none; touch-action: none; }
     #photo-canvas { width: 100%; height: auto; display: block; cursor: crosshair; }
 
+    /* ✨ 모바일 화면에서 우측 패널의 크기를 완벽하게 고정 */
     @media (max-width: 768px) {
         #container { flex-direction: column; overflow: hidden; height: calc(100vh - 40px); }
-        #left-panel { flex-direction: row; width: 100%; height: auto; padding: 5px; border-right: none; border-bottom: 2px solid #2980b9; gap: 5px; align-items: center;}
+        #left-panel { flex-direction: row; width: 100%; height: auto; padding: 5px; border-right: none; border-bottom: 2px solid #2980b9; gap: 5px; align-items: center; z-index: 100;}
         #drop-zone { flex: 1; padding: 5px; min-height: 40px; flex-direction: row; gap: 10px; margin: 0; }
         #drop-zone .icon { font-size: 1.5rem; margin: 0; }
         #file-status { font-size: 0.8rem; text-align: left; }
         .action-btns { display: flex; flex-direction: column; gap: 3px; width: 120px; }
         .action-btns button { padding: 5px; font-size: 0.75rem; margin: 0; }
-        #map-wrapper { flex: 1; min-height: 40vh; width: 100%; }
-        #right-panel { height: 40vh; width: 100%; border-left: none; border-top: 2px solid #34495e; }
+        #map-wrapper { flex: 1; min-height: 40vh; width: 100%; z-index: 1; }
+        #right-panel { height: 42vh; width: 100%; border-left: none; border-top: 2px solid #34495e; position: relative; overflow: hidden; z-index: 10; }
     }
 </style>
 </head>
@@ -134,9 +139,12 @@
     </div>
 
     <div id="right-panel">
-        <div style="padding:4px 10px; background:#34495e; color:white; font-size:0.85rem; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
-            <span>📋 용수 목록</span>
-            <span id="count-badge" style="background:#e67e22; padding:2px 8px; border-radius:12px; font-size:0.75rem;">0건</span>
+        <div style="padding:4px 10px; background:#34495e; color:white; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap: 8px;">
+                <span style="font-size:0.85rem; font-weight:bold;">📋 용수 목록</span>
+                <button onclick="setAllGood()" style="background:#27ae60; color:white; border:1px solid #2ecc71; border-radius:4px; padding:3px 8px; font-size:0.75rem; font-weight:bold; cursor:pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">일괄 양호 ✅</button>
+            </div>
+            <span id="count-badge" style="background:#e67e22; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">0건</span>
         </div>
         <div style="overflow:auto; flex:1;">
             <table class="info-table">
@@ -159,8 +167,8 @@
 
         <div id="status-overlay">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #ff9f43; padding-bottom: 3px; margin-bottom: 8px;">
-                <h3 id="modal-shortNum" style="margin:0; color:#2c3e50; font-size:0.95rem;">📋 상세정보 및 점검</h3>
-                <button onclick="closeStatusModal()" style="background:none; border:none; font-size:1.1rem; cursor:pointer;">❌</button>
+                <h3 id="modal-shortNum" style="margin:0; font-size:0.95rem; padding: 4px 8px;">📋 상세정보 및 점검</h3>
+                <button onclick="closeStatusModal()" style="background:none; border:none; font-size:1.1rem; cursor:pointer; padding-right:5px;">❌</button>
             </div>
             
             <div id="default-info-area">
@@ -199,7 +207,7 @@
         document.addEventListener(evt, e => e.preventDefault(), { capture: true });
     });
 
-    // ✨✨✨ 중요: 방금 만드신 PythonAnywhere 주소! ✨✨✨
+    // ✨ 파이썬 클라우드 주소
     const API_URL = "https://koreanparamedics.pythonanywhere.com";
 
     const COL = { NUM: 7, ROAD: 9, JIBUN: 10, DETAIL: 11, LAT: 12, LNG: 13, SIGN: 18, VALVE: 20, GUARD: 21, MGR: 27 };
@@ -207,7 +215,7 @@
 
     let map, markers=[], workbook=null, worksheet=null, loadedRows=[];
     let currentEditItem = null; 
-    let syncInterval = null; // 동기화 타이머
+    let syncInterval = null; 
 
     map = L.map('map', { zoomControl: false }).setView([35.32, 126.98], 11);
     L.control.zoom({ position: 'bottomleft' }).addTo(map); 
@@ -261,7 +269,6 @@
                 }
             });
             
-            // ✨ 파일 로드 직후 파이썬 서버에서 최신 상태를 싹 긁어와서 덮어씌웁니다! (최초 동기화)
             try {
                 const res = await fetch(API_URL + '/data');
                 const serverData = await res.json();
@@ -272,22 +279,19 @@
                         item.memo = sData.memo || '';
                     }
                 });
-            } catch(e) { console.log("서버 연결 실패 (오프라인 모드로 실행)"); }
+            } catch(e) { console.log("서버 연결 실패"); }
 
             document.getElementById('file-status').innerHTML = `<span style="color:#2980b9;">${file.name}</span>`;
             showManagerOverlay();
-            
-            // 파일이 로드되었으므로 3초마다 감시하는 자동 레이더(동기화)를 켭니다.
             startRealtimeSync();
 
         } catch(err) { alert("엑셀 파일을 읽는 중 오류가 발생했습니다."); } 
         finally { document.getElementById('loading').style.display = 'none'; fileInput.value = ''; }
     }
 
-    // ✨✨✨ 대망의 실시간 자동 동기화(레이더) 엔진 ✨✨✨
     function startRealtimeSync() {
         if(syncInterval) clearInterval(syncInterval);
-        document.getElementById('sync-indicator').style.display = 'inline-block'; // 상단에 라이브 불빛 켜기
+        document.getElementById('sync-indicator').style.display = 'inline-block'; 
         
         syncInterval = setInterval(async () => {
             if(loadedRows.length === 0) return;
@@ -298,12 +302,10 @@
                 loadedRows.forEach(item => {
                     const sData = serverData[item.num];
                     if(sData) {
-                        // 서버의 데이터와 현재 내 폰의 데이터가 다르다면? = 누군가 방금 현장에서 점검했다!
                         if(item.status !== sData.status || item.memo !== sData.memo) {
                             item.status = sData.status;
                             item.memo = sData.memo || '';
                             
-                            // 즉시 UI(표 뱃지, 마커 색상)를 실시간으로 새로고침 없이 바꿈
                             const rowBtn = document.querySelector(`#row-${item.num} .badge-status`);
                             if(rowBtn) {
                                 let statusClass = 'status-none'; 
@@ -317,15 +319,15 @@
                                 const newIcon = createMarkerIcon(item.shortNum, item.mgrColor, item.status); 
                                 item.marker.setIcon(newIcon); 
                             }
-                            // 팝업창을 열고 보고 있는 도중에 다른 사람이 바꾸면 팝업창 메모도 즉시 변경!
                             if(currentEditItem && currentEditItem.num === item.num) {
                                 document.getElementById('modal-memo').innerText = item.memo || '-';
+                                updateModalHeaderColor(item.status); // 동기화 시 팝업 색상도 자동 변경
                             }
                         }
                     }
                 });
             } catch(e) { console.log("동기화 대기중..."); }
-        }, 3000); // 3초에 한 번씩 감시 (서버 무리 안가는 최적의 시간)
+        }, 3000); 
     }
 
     function showManagerOverlay() {
@@ -396,6 +398,24 @@
         const row = document.getElementById(`row-${id}`); if(row) { row.classList.add('selected-row'); row.scrollIntoView({behavior:'smooth', block:'nearest'}); }
     }
 
+    // ✨ 팝업창 상단의 배경색을 상태에 맞게 바꿔주는 함수
+    function updateModalHeaderColor(status) {
+        const header = document.getElementById('modal-shortNum');
+        if (status === '양호') {
+            header.style.backgroundColor = 'rgba(39, 174, 96, 0.15)'; // 연초록
+            header.style.color = '#27ae60';
+        } else if (status === '불량') {
+            header.style.backgroundColor = 'rgba(243, 156, 18, 0.15)'; // 연노랑
+            header.style.color = '#d35400';
+        } else if (status === '고장') {
+            header.style.backgroundColor = 'rgba(231, 76, 60, 0.15)'; // 연빨강
+            header.style.color = '#c0392b';
+        } else {
+            header.style.backgroundColor = 'transparent';
+            header.style.color = '#2c3e50';
+        }
+    }
+
     function openStatusModal(e, rowNum, shortNum) {
         if(e && typeof e.stopPropagation === 'function') e.stopPropagation();
         currentEditItem = loadedRows.find(item => item.num === rowNum);
@@ -409,6 +429,8 @@
         const guard = (r.getCell(COL.GUARD).value || "").toString() || '-';
 
         document.getElementById('modal-shortNum').innerText = `[${shortNum}번] 정보 및 점검`;
+        updateModalHeaderColor(currentEditItem.status); // 색상 변경 적용
+
         document.getElementById('modal-mgr').innerText = mgr; 
         document.getElementById('modal-road').innerText = road;
         document.getElementById('modal-jibun').innerText = jibun; 
@@ -427,7 +449,6 @@
 
     function closeStatusModal() { document.getElementById('status-overlay').style.display = 'none'; currentEditItem = null; }
     
-    // ✨ 클라우드로 데이터를 발사(POST)하는 로직 추가!
     function saveStatus(newStatus) {
         if(currentEditItem) {
             let memo = "";
@@ -438,7 +459,6 @@
                 memo = ""; 
             }
 
-            // 내 폰의 화면 즉시 변경
             currentEditItem.status = newStatus;
             currentEditItem.memo = memo;
 
@@ -456,12 +476,11 @@
                 currentEditItem.marker.setIcon(newIcon); 
             }
             
-            // ✨ 1초만에 파이썬 서버로 데이터 전송! (다른 직원들 PC 화면도 실시간으로 변함)
             fetch(API_URL + '/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    id: currentEditItem.num, // 고유번호
+                    id: currentEditItem.num, 
                     status: newStatus,
                     memo: memo,
                     manager: currentEditItem.mgrName
@@ -470,6 +489,47 @@
 
             closeStatusModal(); 
         }
+    }
+
+    // ✨✨✨ 일괄 양호 처리 함수 추가 ✨✨✨
+    async function setAllGood() {
+        if(!confirm("현재 목록에 있는 모든 '미점검' 용수를 '양호'로 일괄 변경하시겠습니까?\n(이미 불량/고장으로 체크된 용수도 양호로 덮어씌워집니다.)")) return;
+        
+        document.getElementById('loading-msg').innerText = "일괄 양호 처리 중... (서버 전송)";
+        document.getElementById('loading').style.display = 'flex';
+        
+        // 현재 리스트(화면)에 표시된 용수들만 추려냅니다.
+        const targets = loadedRows.filter(item => document.getElementById(`row-${item.num}`) && item.status !== '양호');
+        
+        for(let item of targets) {
+            item.status = '양호';
+            item.memo = '';
+            
+            // UI 즉시 변경
+            const rowBtn = document.querySelector(`#row-${item.num} .badge-status`);
+            if(rowBtn) {
+                rowBtn.innerText = '양호';
+                rowBtn.className = 'badge-status status-good';
+            }
+            if(item.marker) {
+                item.marker.setIcon(createMarkerIcon(item.shortNum, item.mgrColor, '양호'));
+            }
+            
+            // 서버로 순차 전송 (서버 무리 안 가게 하나씩)
+            await fetch(API_URL + '/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: item.num,
+                    status: '양호',
+                    memo: '',
+                    manager: item.mgrName
+                })
+            }).catch(e => console.log(e));
+        }
+        
+        document.getElementById('loading').style.display = 'none';
+        alert(`총 ${targets.length}건이 일괄 양호 처리되었습니다!`);
     }
 
     const canvas = document.getElementById('photo-canvas'); const ctx = canvas.getContext('2d'); const cameraInput = document.getElementById('cameraInput'); let originalImage = null;
