@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🚒 소방용수 통합관제 v75</title>
+<title>🚒 소방용수 통합관제 v77</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -12,6 +12,11 @@
     body { margin:0; padding:0; font-family:'Malgun Gothic', sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; background-color: #f4f6f9;}
     
     #header { height:40px; background:#2c3e50; color:white; display:flex; align-items:center; padding:0 15px; border-bottom:3px solid #ff9f43; flex-shrink: 0; }
+    
+    /* ✨ 실시간 동기화 표시등 애니메이션 */
+    @keyframes blink { 0% { opacity:1; } 50% { opacity:0.3; } 100% { opacity:1; } }
+    .sync-badge { font-size:0.7rem; background:#27ae60; padding:3px 8px; border-radius:12px; margin-left:10px; font-weight:bold; animation: blink 2s infinite; box-shadow: 0 0 5px #27ae60; }
+
     #container { display:flex; flex:1; height:calc(100vh - 40px); position:relative; width: 100%; overflow: hidden; }
     #left-panel { width:240px; background:white; border-right:1px solid #ccc; display:flex; flex-direction:column; padding:10px; z-index:1000; flex-shrink: 0; gap: 8px;}
     #drop-zone { border: 2px dashed #bdc3c7; border-radius: 6px; background: #fafafa; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #7f8c8d; cursor: pointer; transition: all 0.3s ease; padding: 15px 5px; min-height: 100px; }
@@ -27,11 +32,7 @@
     .overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:3000; display:none; justify-content:center; align-items:center; }
     .modal { background:white; width:95%; max-width:380px; padding:20px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5); border-top:5px solid #2980b9; max-height: 90vh; overflow-y: auto; }
     
-    #status-overlay {
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        background: #ffffff; z-index: 2000; display: none; flex-direction: column;
-        padding: 10px 15px; overflow-y: auto; box-sizing: border-box;
-    }
+    #status-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff; z-index: 2000; display: none; flex-direction: column; padding: 10px 15px; overflow-y: auto; box-sizing: border-box; }
 
     #overlay-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:250px; overflow-y:auto; margin:15px 0; border:1px solid #eee; padding:10px; background:#f9f9f9;}
     .mgr-label { cursor:pointer; display:flex; align-items:center; font-size:0.9rem; padding:6px; border-radius:4px; background:white; border:1px solid #ddd;}
@@ -48,13 +49,12 @@
     .status-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
     .status-select-btn { padding: 8px 5px; border:none; border-radius:5px; color:white; font-weight:bold; cursor:pointer; font-size:0.85rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     
-    /* ✨ v73의 깔끔하고 타이트한 목록용 뱃지로 원복 */
-    .badge-status { padding: 3px 0; border-radius: 3px; font-size: 0.7rem; font-weight: bold; color: white; cursor: pointer; border: none; width: 90%; margin: 0 auto; display: block; line-height: 1.2; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+    .badge-status { padding: 3px 0; border-radius: 3px; font-size: 0.7rem; font-weight: bold; color: white; cursor: pointer; border: none; width: 90%; margin: 0 auto; display: block; line-height: 1.2; box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: all 0.3s ease;}
     .status-none { background: #95a5a6; } .status-good { background: #27ae60; } .status-warn { background: #f39c12; } .status-fail { background: #e74c3c; } 
 
     .info-table { width:100%; border-collapse:collapse; font-size:0.75rem; table-layout:fixed; }
     .info-table th { background:#34495e; color:white; padding:6px 2px; position:sticky; top:0; z-index:10; white-space:nowrap; font-size: 0.75rem; position:relative; }
-    .info-table td { border-bottom:1px solid #ddd; padding: 4px 2px; text-align:center; word-break:keep-all; vertical-align:middle; line-height:1.1; overflow:hidden; text-overflow:ellipsis; }
+    .info-table td { border-bottom:1px solid #ddd; padding: 4px 2px; text-align:center; word-break:keep-all; vertical-align:middle; line-height:1.1; overflow:hidden; text-overflow:ellipsis; transition: background 0.3s; }
     .info-table tr:hover { filter: brightness(0.95); cursor:pointer; }
     .selected-row { border-left:4px solid #e67e22; font-weight:bold; filter: brightness(0.9); }
     .error-row { background:#ffebee !important; color:#c0392b; }
@@ -62,7 +62,7 @@
     .resizer { position: absolute; top: 0; right: 0; width: 6px; cursor: col-resize; user-select: none; height: 100%; z-index: 11; border-right: 2px solid #7f8c8d; }
     .resizer:hover, .resizing { border-right: 3px solid #ff9f43; background-color: rgba(255, 159, 67, 0.2); }
 
-    .circle-marker { display:flex; justify-content:center; align-items:center; border-radius:50%; font-weight:900; font-family:'Arial Black', sans-serif; box-shadow:0 3px 6px rgba(0,0,0,0.4); transition:transform 0.2s; }
+    .circle-marker { display:flex; justify-content:center; align-items:center; border-radius:50%; font-weight:900; font-family:'Arial Black', sans-serif; box-shadow:0 3px 6px rgba(0,0,0,0.4); transition:transform 0.3s ease, background 0.3s ease, color 0.3s ease; }
     .circle-marker:hover { transform: scale(1.1); }
     
     #gps-btn { position: absolute; bottom: 20px; right: 20px; z-index: 2000; background: white; border: 2px solid #2980b9; color: #2980b9; border-radius: 50px; padding: 10px 15px; font-weight: bold; font-size: 0.85rem; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: all 0.3s ease; }
@@ -109,7 +109,10 @@
 </div>
 
 <div id="header">
-    <h3 style="margin:0; font-size:1.1rem;">🚒 소방용수 통합관제 <span style="font-size:0.8rem; font-weight:normal; color:#bdc3c7;">v75</span></h3>
+    <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center;">
+        🚒 소방용수 통합관제 
+        <span class="sync-badge" id="sync-indicator" style="display:none;">📡 라이브 동기화 중</span>
+    </h3>
 </div>
 
 <div id="container">
@@ -120,8 +123,8 @@
             <input type="file" id="excelFile" accept=".xlsx" style="display:none;" />
         </label>
         <div class="action-btns">
-            <button class="btn-green" onclick="exportExcel()">💾 엑셀 저장 (연동용)</button>
-            <button class="btn-gray" onclick="resetWork()">🔄 작업 초기화</button>
+            <button class="btn-green" onclick="exportExcel()">💾 엑셀 파일 추출</button>
+            <button class="btn-gray" onclick="resetWork()">🔄 데이터 초기화</button>
         </div>
     </div>
 
@@ -182,7 +185,7 @@
                     <canvas id="photo-canvas"></canvas>
                 </div>
                 <div style="display:flex; gap:5px; margin-top:5px;">
-                    <button class="btn-green" style="flex:1;" onclick="saveEditedPhoto()">💾 저장</button>
+                    <button class="btn-green" style="flex:1;" onclick="saveEditedPhoto()">💾 사진 저장</button>
                     <button class="btn-gray" style="flex:1; background:#e74c3c;" onclick="cancelPhotoEdit()">❌ 취소</button>
                 </div>
             </div>
@@ -196,11 +199,15 @@
         document.addEventListener(evt, e => e.preventDefault(), { capture: true });
     });
 
+    // ✨✨✨ 중요: 방금 만드신 PythonAnywhere 주소! ✨✨✨
+    const API_URL = "https://koreanparamedics.pythonanywhere.com";
+
     const COL = { NUM: 7, ROAD: 9, JIBUN: 10, DETAIL: 11, LAT: 12, LNG: 13, SIGN: 18, VALVE: 20, GUARD: 21, MGR: 27 };
     const ACTIVE_COLORS = ['#ff4757', '#2ed573', '#1e90ff']; 
 
     let map, markers=[], workbook=null, worksheet=null, loadedRows=[];
     let currentEditItem = null; 
+    let syncInterval = null; // 동기화 타이머
 
     map = L.map('map', { zoomControl: false }).setView([35.32, 126.98], 11);
     L.control.zoom({ position: 'bottomleft' }).addTo(map); 
@@ -239,6 +246,7 @@
 
     async function handleFile(file) {
         if(!file) return;
+        document.getElementById('loading-msg').innerText = "파일 및 클라우드 데이터 읽는 중...";
         document.getElementById('loading').style.display = 'flex';
         try {
             const buffer = await file.arrayBuffer();
@@ -246,11 +254,78 @@
             await workbook.xlsx.load(buffer);
             worksheet = workbook.worksheets[0];
             loadedRows = [];
-            worksheet.eachRow((row, rowNumber) => { if(rowNumber >= 3) loadedRows.push({ row: row, num: rowNumber, status: '미점검', shortNum: '', mgrColor: '#333', marker: null, mgrName: '', memo: '' }); });
+            
+            worksheet.eachRow((row, rowNumber) => { 
+                if(rowNumber >= 3) {
+                    loadedRows.push({ row: row, num: rowNumber, status: '미점검', shortNum: '', mgrColor: '#333', marker: null, mgrName: '', memo: '' }); 
+                }
+            });
+            
+            // ✨ 파일 로드 직후 파이썬 서버에서 최신 상태를 싹 긁어와서 덮어씌웁니다! (최초 동기화)
+            try {
+                const res = await fetch(API_URL + '/data');
+                const serverData = await res.json();
+                loadedRows.forEach(item => {
+                    const sData = serverData[item.num];
+                    if(sData) {
+                        item.status = sData.status;
+                        item.memo = sData.memo || '';
+                    }
+                });
+            } catch(e) { console.log("서버 연결 실패 (오프라인 모드로 실행)"); }
+
             document.getElementById('file-status').innerHTML = `<span style="color:#2980b9;">${file.name}</span>`;
             showManagerOverlay();
+            
+            // 파일이 로드되었으므로 3초마다 감시하는 자동 레이더(동기화)를 켭니다.
+            startRealtimeSync();
+
         } catch(err) { alert("엑셀 파일을 읽는 중 오류가 발생했습니다."); } 
         finally { document.getElementById('loading').style.display = 'none'; fileInput.value = ''; }
+    }
+
+    // ✨✨✨ 대망의 실시간 자동 동기화(레이더) 엔진 ✨✨✨
+    function startRealtimeSync() {
+        if(syncInterval) clearInterval(syncInterval);
+        document.getElementById('sync-indicator').style.display = 'inline-block'; // 상단에 라이브 불빛 켜기
+        
+        syncInterval = setInterval(async () => {
+            if(loadedRows.length === 0) return;
+            try {
+                const res = await fetch(API_URL + '/data');
+                const serverData = await res.json();
+                
+                loadedRows.forEach(item => {
+                    const sData = serverData[item.num];
+                    if(sData) {
+                        // 서버의 데이터와 현재 내 폰의 데이터가 다르다면? = 누군가 방금 현장에서 점검했다!
+                        if(item.status !== sData.status || item.memo !== sData.memo) {
+                            item.status = sData.status;
+                            item.memo = sData.memo || '';
+                            
+                            // 즉시 UI(표 뱃지, 마커 색상)를 실시간으로 새로고침 없이 바꿈
+                            const rowBtn = document.querySelector(`#row-${item.num} .badge-status`);
+                            if(rowBtn) {
+                                let statusClass = 'status-none'; 
+                                if(item.status === '양호') statusClass = 'status-good'; 
+                                else if(item.status === '불량') statusClass = 'status-warn'; 
+                                else if(item.status === '고장') statusClass = 'status-fail'; 
+                                rowBtn.innerText = item.status + (item.memo ? " 💬" : "");
+                                rowBtn.className = `badge-status ${statusClass}`;
+                            }
+                            if(item.marker) { 
+                                const newIcon = createMarkerIcon(item.shortNum, item.mgrColor, item.status); 
+                                item.marker.setIcon(newIcon); 
+                            }
+                            // 팝업창을 열고 보고 있는 도중에 다른 사람이 바꾸면 팝업창 메모도 즉시 변경!
+                            if(currentEditItem && currentEditItem.num === item.num) {
+                                document.getElementById('modal-memo').innerText = item.memo || '-';
+                            }
+                        }
+                    }
+                });
+            } catch(e) { console.log("동기화 대기중..."); }
+        }, 3000); // 3초에 한 번씩 감시 (서버 무리 안가는 최적의 시간)
     }
 
     function showManagerOverlay() {
@@ -304,7 +379,6 @@
                 const tr = document.createElement('tr'); tr.id = `row-${item.num}`;
                 if(isValidLocation) tr.style.backgroundColor = getLightColor(mgrColor); else tr.classList.add('error-row');
                 
-                // ✨ 목록 화면 뱃지는 심플하게 '상태 💬' 형태로 원복!
                 let statusText = item.status;
                 if(item.memo) statusText += " 💬";
 
@@ -342,7 +416,6 @@
         document.getElementById('modal-sign').innerText = sign; 
         document.getElementById('modal-valve').innerText = valve; 
         document.getElementById('modal-guard').innerText = guard;
-        // ✨ 팝업창 안에 저장된 메모 보여주기
         document.getElementById('modal-memo').innerText = currentEditItem.memo || '-';
 
         document.getElementById('default-info-area').style.display = 'block';
@@ -354,17 +427,18 @@
 
     function closeStatusModal() { document.getElementById('status-overlay').style.display = 'none'; currentEditItem = null; }
     
+    // ✨ 클라우드로 데이터를 발사(POST)하는 로직 추가!
     function saveStatus(newStatus) {
         if(currentEditItem) {
             let memo = "";
             if(newStatus === '불량' || newStatus === '고장') {
-                // 기존 메모가 있다면 입력창에 미리 띄워줌
                 memo = prompt(`[${newStatus}] 상태를 선택하셨습니다.\n간단한 사유(메모)를 입력해 주세요:`, currentEditItem.memo || "");
                 if(memo === null) return; 
             } else {
                 memo = ""; 
             }
 
+            // 내 폰의 화면 즉시 변경
             currentEditItem.status = newStatus;
             currentEditItem.memo = memo;
 
@@ -374,8 +448,6 @@
                 if(newStatus === '양호') statusClass = 'status-good'; 
                 else if(newStatus === '불량') statusClass = 'status-warn'; 
                 else if(newStatus === '고장') statusClass = 'status-fail'; 
-                
-                // 목록 화면은 다시 심플하게 적용
                 rowBtn.innerText = newStatus + (memo ? " 💬" : "");
                 rowBtn.className = `badge-status ${statusClass}`;
             }
@@ -383,21 +455,28 @@
                 const newIcon = createMarkerIcon(currentEditItem.shortNum, currentEditItem.mgrColor, newStatus); 
                 currentEditItem.marker.setIcon(newIcon); 
             }
+            
+            // ✨ 1초만에 파이썬 서버로 데이터 전송! (다른 직원들 PC 화면도 실시간으로 변함)
+            fetch(API_URL + '/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: currentEditItem.num, // 고유번호
+                    status: newStatus,
+                    memo: memo,
+                    manager: currentEditItem.mgrName
+                })
+            }).catch(e => console.log("서버 전송 실패", e));
+
             closeStatusModal(); 
         }
     }
 
-    const canvas = document.getElementById('photo-canvas');
-    const ctx = canvas.getContext('2d');
-    const cameraInput = document.getElementById('cameraInput');
-    let originalImage = null;
-
+    const canvas = document.getElementById('photo-canvas'); const ctx = canvas.getContext('2d'); const cameraInput = document.getElementById('cameraInput'); let originalImage = null;
     function triggerCamera() { cameraInput.click(); }
-
     cameraInput.addEventListener('change', function(e) {
         if (e.target.files && e.target.files[0]) {
-            document.getElementById('loading-msg').innerText = "사진 띄우는 중...";
-            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('loading-msg').innerText = "사진 띄우는 중..."; document.getElementById('loading').style.display = 'flex';
             const reader = new FileReader();
             reader.onload = function(event) {
                 originalImage = new Image();
@@ -414,69 +493,41 @@
     });
 
     function drawBaseImageWithOverlay() {
-        const maxWidth = 800; 
-        const scale = maxWidth / originalImage.width;
-        canvas.width = maxWidth;
-        canvas.height = originalImage.height * scale;
-
+        const maxWidth = 800; const scale = maxWidth / originalImage.width; canvas.width = maxWidth; canvas.height = originalImage.height * scale;
         ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
-
-        const overlayHeight = 50;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.fillRect(0, canvas.height - overlayHeight, canvas.width, overlayHeight);
-
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 24px "Malgun Gothic", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        const overlayHeight = 50; ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; ctx.fillRect(0, canvas.height - overlayHeight, canvas.width, overlayHeight);
+        ctx.fillStyle = 'white'; ctx.font = 'bold 24px "Malgun Gothic", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         const infoText = `[${currentEditItem.shortNum}번 용수] 담당자: ${currentEditItem.mgrName}`;
         ctx.fillText(infoText, canvas.width / 2, canvas.height - (overlayHeight / 2));
     }
 
     canvas.addEventListener('click', function(e) {
-        ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
-        drawBaseImageWithOverlay(); 
-
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-        const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-
-        ctx.beginPath();
-        ctx.arc(x, y, 40, 0, 2 * Math.PI); 
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = '#f1c40f'; 
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(241, 196, 15, 0.3)';
-        ctx.fill();
+        ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height); drawBaseImageWithOverlay(); 
+        const rect = canvas.getBoundingClientRect(); const x = (e.clientX - rect.left) * (canvas.width / rect.width); const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+        ctx.beginPath(); ctx.arc(x, y, 40, 0, 2 * Math.PI); ctx.lineWidth = 5; ctx.strokeStyle = '#f1c40f'; ctx.stroke(); ctx.fillStyle = 'rgba(241, 196, 15, 0.3)'; ctx.fill();
     });
 
     function saveEditedPhoto() {
         if (!currentEditItem) return;
         const fileName = `${currentEditItem.shortNum}번용수-${currentEditItem.mgrName}.jpg`;
-        const link = document.createElement('a');
-        link.download = fileName;
-        link.href = canvas.toDataURL('image/jpeg', 0.9); 
-        link.click();
+        const link = document.createElement('a'); link.download = fileName; link.href = canvas.toDataURL('image/jpeg', 0.9); link.click();
         closeStatusModal(); 
     }
 
-    function cancelPhotoEdit() {
-        clearCanvas();
-        document.getElementById('photo-editor-area').style.display = 'none';
-        document.getElementById('default-info-area').style.display = 'block';
-        cameraInput.value = ''; 
-    }
-
+    function cancelPhotoEdit() { clearCanvas(); document.getElementById('photo-editor-area').style.display = 'none'; document.getElementById('default-info-area').style.display = 'block'; cameraInput.value = ''; }
     function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); originalImage = null; }
 
-    function resetWork() { if(!confirm("진행 중인 모든 점검 내용과 목록이 초기화됩니다. 계속하시겠습니까?")) return; workbook = null; worksheet = null; loadedRows = []; currentEditItem = null; markers.forEach(m => map.removeLayer(m)); markers = []; document.getElementById('listBody').innerHTML = '<tr><td colspan="9" style="padding:40px; color:#aaa; text-align:center;">엑셀 파일을 로드해주세요.</td></tr>'; document.getElementById('file-status').innerHTML = '파일을 터치하거나<br>드래그하세요'; document.getElementById('count-badge').innerText = '0건'; document.getElementById('excelFile').value = ''; map.setView([35.32, 126.98], 11); }
+    function resetWork() { 
+        if(!confirm("초기화 하시겠습니까? (서버 데이터는 유지됩니다)")) return; 
+        if(syncInterval) clearInterval(syncInterval); document.getElementById('sync-indicator').style.display = 'none';
+        workbook = null; worksheet = null; loadedRows = []; currentEditItem = null; markers.forEach(m => map.removeLayer(m)); markers = []; document.getElementById('listBody').innerHTML = '<tr><td colspan="9" style="padding:40px; color:#aaa; text-align:center;">엑셀 파일을 로드해주세요.</td></tr>'; document.getElementById('file-status').innerHTML = '파일을 터치하거나<br>드래그하세요'; document.getElementById('count-badge').innerText = '0건'; document.getElementById('excelFile').value = ''; map.setView([35.32, 126.98], 11); 
+    }
 
     async function exportExcel() {
         if(loadedRows.length === 0) return alert("내보낼 데이터가 없습니다. 파일을 먼저 로드하세요.");
         document.getElementById('loading-msg').innerText = "엑셀 생성 중..."; document.getElementById('loading').style.display = 'flex';
         try {
             const newWb = new ExcelJS.Workbook(); const newWs = newWb.addWorksheet('점검결과');
-            
             newWs.addRow(['연번', '번호', '점검상태', '특이사항', '담당자', '도로명', '지번', '상세위치', '표지', '제수', '보호']); 
             newWs.getRow(1).font = { bold: true }; newWs.getRow(1).alignment = { horizontal: 'center' };
             const targetNames = Array.from(document.querySelectorAll('.mgr-check:checked')).map(c => c.value);
@@ -485,23 +536,18 @@
                 const r = item.row; const mgr = (r.getCell(COL.MGR).value || "").toString().trim();
                 if(targetNames.includes(mgr) || targetNames.length === 0) {
                     let fullNum = (r.getCell(COL.NUM).value || "").toString(); let road = (r.getCell(COL.ROAD).value || "").toString(); let jibun = (r.getCell(COL.JIBUN).value || "").toString(); let detail = (r.getCell(COL.DETAIL).value || "").toString(); let sign = (r.getCell(COL.SIGN).value || "").toString(); let valve = (r.getCell(COL.VALVE).value || "").toString(); let guard = (r.getCell(COL.GUARD).value || "").toString();
-                    
                     newWs.addRow([count++, fullNum, item.status, item.memo || "", mgr, road, jibun, detail, sign, valve, guard]);
                 }
             });
             newWs.columns = [{ width: 6 }, { width: 15 }, { width: 10 }, { width: 25 }, { width: 10 }, { width: 25 }, { width: 25 }, { width: 30 }, { width: 10 }, { width: 10 }, { width: 10 }];
-            const buffer = await newWb.xlsx.writeBuffer(); const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); const today = new Date().toISOString().slice(2,10).replace(/-/g,''); link.download = `소방용수_점검결과_${today}.xlsx`; link.click(); alert("점검결과 엑셀 파일이 다운로드되었습니다.");
+            const buffer = await newWb.xlsx.writeBuffer(); const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); const today = new Date().toISOString().slice(2,10).replace(/-/g,''); link.download = `소방용수_실시간저장본_${today}.xlsx`; link.click(); alert("현장 데이터가 반영된 엑셀 파일이 다운로드되었습니다.");
         } catch(err) { alert("엑셀 생성 중 오류: " + err.message); } finally { document.getElementById('loading').style.display = 'none'; document.getElementById('loading-msg').innerText = "처리 중..."; }
     }
 
     let gpsWatchId = null; let userMarker = null; 
     function toggleGPS() {
         const btn = document.getElementById('gps-btn');
-        if (gpsWatchId) { 
-            navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; 
-            if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
-            btn.innerText = "🎯 내 위치 표시"; btn.classList.remove('active'); return; 
-        }
+        if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; if (userMarker) { map.removeLayer(userMarker); userMarker = null; } btn.innerText = "🎯 내 위치 표시"; btn.classList.remove('active'); return; }
         if (!navigator.geolocation) return alert("스마트폰의 위치 서비스를 켜주세요.");
         btn.innerText = "⏹️ 위치 표시 끄기"; btn.classList.add('active');
         gpsWatchId = navigator.geolocation.watchPosition(
