@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🚒 소방용수 통합관제 v82</title>
+<title>🚒 소방용수 통합관제 v82 (최종)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -53,31 +53,18 @@
     @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
     #photo-canvas-container { width: 100%; overflow: hidden; margin-top: 10px; border: 2px solid #ddd; display: none; touch-action: none; }
     #photo-canvas { width: 100%; height: auto; display: block; cursor: crosshair; }
+    
+    /* ✨ 버튼 가림 현상 완벽 해결을 위한 수술 부위 */
     @media (max-width: 768px) {
-    #container { flex-direction: column; height: calc(100dvh - 40px); }
-    
-    /* 1. 상단 버튼 바: 높이를 고정하지 않고 내용에 맞게 늘어나도록 수정 */
-    #left-panel { 
-        flex-direction: row; width: 100%; height: auto; 
-        padding: 8px; border-bottom: 2px solid #2980b9; 
-        gap: 8px; z-index: 100; overflow-x: auto; flex-wrap: nowrap;
-    }
-    
-    /* 2. 드롭존: 모바일에서 너무 크지 않게 조절 */
-    #drop-zone { flex: 0 0 auto; width: 100px; padding: 5px; min-height: 50px; }
-    
-    /* 3. 버튼 뭉치: 가로로 나열되게 하여 가림 방지 */
-    .action-btns { 
-        display: flex; flex-direction: row; flex: 1; 
-        gap: 5px; min-width: 250px; 
-    }
-    .action-btns button { flex: 1; padding: 10px 5px; font-size: 0.75rem; margin: 0; height: 100%; }
-
-    #map-wrapper { flex: 1; width: 100%; z-index: 1; }
-    
-    /* 4. 하단 패널: 위치 확실히 고정 */
-    #right-panel { height: 35vh; width: 100%; border-top: 2px solid #34495e; }
-}
+        #container { flex-direction: column; overflow: hidden; height: calc(100dvh - 40px); }
+        #left-panel { flex-direction: row; width: 100%; height: auto; padding: 8px; border-bottom: 2px solid #2980b9; gap: 8px; z-index: 100; overflow-x: auto; flex-wrap: nowrap; }
+        #drop-zone { flex: 0 0 auto; width: 100px; padding: 5px; min-height: 50px; }
+        #drop-zone .icon { font-size: 1.2rem; margin: 0; }
+        #file-status { font-size: 0.75rem; text-align: left; }
+        .action-btns { display: flex; flex-direction: row; flex: 1; gap: 5px; min-width: 250px; }
+        .action-btns button { flex: 1; padding: 10px 5px; font-size: 0.75rem; margin: 0; height: 100%; }
+        #map-wrapper { flex: 1; min-height: 40vh; width: 100%; z-index: 1; }
+        #right-panel { height: 35vh; width: 100%; border-top: 2px solid #34495e; position: relative; overflow: hidden; z-index: 10; }
     }
 </style>
 </head>
@@ -178,7 +165,6 @@
         </div>
     </div>
 </div>
-
 <script>
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
         window.addEventListener(evt, e => e.preventDefault(), { capture: true });
@@ -236,7 +222,7 @@
             
             worksheet.eachRow((row, rowNumber) => { 
                 if(rowNumber >= 3) {
-                    // ✨ photoBase64 변수를 추가하여 폰 메모리에 사진을 임시 보관합니다.
+                    // ✨ photoBase64 변수를 추가하여 폰 메모리에 사진을 임시 보관
                     loadedRows.push({ row: row, num: rowNumber, status: '미점검', shortNum: '', mgrColor: '#333', marker: null, mgrName: '', memo: '', photoBase64: null }); 
                 }
             });
@@ -304,7 +290,6 @@
         document.getElementById('manager-overlay').style.display = 'none';
         setTimeout(() => map.invalidateSize(), 300); renderMapAndTable(targets);
     }
-
     function renderMapAndTable(targets) {
         markers.forEach(m => map.removeLayer(m)); markers = [];
         const tbody = document.getElementById('listBody'); tbody.innerHTML = "";
@@ -337,7 +322,7 @@
             }
         });
         document.getElementById('count-badge').innerText = `${validCount}건 표시`;
-        if(bounds.length > 0) map.fitBounds(bounds); initResizableColumns();
+        if(bounds.length > 0) map.fitBounds(bounds); 
     }
 
     function highlightRow(id) {
@@ -453,7 +438,6 @@
         ctx.beginPath(); ctx.arc(x, y, 30, 0, 2 * Math.PI); ctx.lineWidth = 4; ctx.strokeStyle = '#f1c40f'; ctx.stroke(); ctx.fillStyle = 'rgba(241, 196, 15, 0.3)'; ctx.fill();
     });
 
-    // ✨ 사진 저장 시: 폰에 다운로드 + 메일 전송을 위해 변수(photoBase64)에 압축 보관!
     function saveEditedPhoto() {
         if (!currentEditItem) return;
         const fileName = `${currentEditItem.shortNum}번용수-${currentEditItem.mgrName}.jpg`;
@@ -500,11 +484,10 @@
         } catch(err) { alert("엑셀 생성 오류: " + err.message); } finally { document.getElementById('loading').style.display = 'none'; }
     }
 
-    // ✨✨✨ 대망의 원터치 공직자메일 자동 발송 기능 ✨✨✨
+    // ✨ 대망의 원터치 공직자메일 자동 발송 기능
     async function sendReportEmail() {
         if(loadedRows.length === 0) return alert("데이터가 없습니다. 엑셀 파일을 먼저 로드하세요.");
         
-        // 1. 공직자 메일 주소 입력 받기 (한 번 입력하면 브라우저가 기억함)
         let savedEmail = localStorage.getItem("myKoreaEmail") || "";
         let targetEmail = prompt("보고서를 받을 공직자 메일 주소(또는 개인 메일)를 입력하세요:", savedEmail);
         if(!targetEmail) return;
@@ -514,7 +497,6 @@
         document.getElementById('loading').style.display = 'flex';
         
         try {
-            // 2. 백그라운드에서 엑셀 파일 생성
             const newWb = new ExcelJS.Workbook(); const newWs = newWb.addWorksheet('점검결과');
             newWs.addRow(['연번', '번호', '점검상태', '특이사항', '담당자', '도로명', '지번', '상세위치']); 
             newWs.getRow(1).font = { bold: true };
@@ -524,11 +506,8 @@
                 newWs.addRow([count++, (r.getCell(COL.NUM).value || "").toString(), item.status, item.memo || "", mgr, (r.getCell(COL.ROAD).value || "").toString(), (r.getCell(COL.JIBUN).value || "").toString(), (r.getCell(COL.DETAIL).value || "").toString()]);
             });
             const buffer = await newWb.xlsx.writeBuffer();
-            
-            // 버퍼를 Base64 문자열로 변환 (메일 첨부용)
             const excelBase64 = btoa(new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
 
-            // 3. 앱 메모리에 보관된 모든 '압축 사진' 모으기
             let attachedPhotos = [];
             loadedRows.forEach(item => {
                 if(item.photoBase64) {
@@ -539,7 +518,6 @@
                 }
             });
 
-            // 4. 파이썬 서버로 "전부 포장해서 메일 쏴줘!" 라고 지시
             const res = await fetch(API_URL + '/send_email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -581,4 +559,3 @@
 </script>
 </body>
 </html>
-
