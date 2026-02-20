@@ -3,85 +3,58 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🚒 소방용수 통합관제 v78</title>
+<title>🚒 소방용수 통합관제 v80</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <style>
     * { box-sizing: border-box; }
-    body { margin:0; padding:0; font-family:'Malgun Gothic', sans-serif; height:100vh; display:flex; flex-direction:column; overflow:hidden; background-color: #f4f6f9;}
-    
-    #header { height:40px; background:#2c3e50; color:white; display:flex; align-items:center; padding:0 15px; border-bottom:3px solid #ff9f43; flex-shrink: 0; }
-    
+    body { margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; width: 100vw; height: 100vh; height: 100dvh; position: fixed; top: 0; left: 0; display: flex; flex-direction: column; overflow: hidden; background-color: #f4f6f9; }
+    #header { height:40px; background:#2c3e50; color:white; display:flex; align-items:center; padding:0 15px; border-bottom:3px solid #ff9f43; flex-shrink: 0; z-index: 5000; position: relative; }
     @keyframes blink { 0% { opacity:1; } 50% { opacity:0.3; } 100% { opacity:1; } }
     .sync-badge { font-size:0.7rem; background:#27ae60; padding:3px 8px; border-radius:12px; margin-left:10px; font-weight:bold; animation: blink 2s infinite; box-shadow: 0 0 5px #27ae60; }
-
-    #container { display:flex; flex:1; height:calc(100vh - 40px); position:relative; width: 100%; overflow: hidden; }
+    #container { display:flex; flex:1; height:calc(100vh - 40px); height:calc(100dvh - 40px); position:relative; width: 100%; overflow: hidden; }
     #left-panel { width:240px; background:white; border-right:1px solid #ccc; display:flex; flex-direction:column; padding:10px; z-index:1000; flex-shrink: 0; gap: 8px;}
     #drop-zone { border: 2px dashed #bdc3c7; border-radius: 6px; background: #fafafa; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #7f8c8d; cursor: pointer; transition: all 0.3s ease; padding: 15px 5px; min-height: 100px; }
     #drop-zone:hover, #drop-zone.dragover { background: #e0f7fa; border-color: #00bcd4; color: #00838f; }
     #drop-zone .icon { font-size: 2rem; margin-bottom: 5px; }
     #file-status { font-size: 0.85rem; font-weight: bold; line-height: 1.3; word-break: break-all;}
-    
     #map-wrapper { flex:1; position: relative; z-index: 1; min-height: 250px; }
     #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
-    
-    /* ✨ 패널이 무조건 고정된 크기 안에서 스크롤되도록 overflow 속성 강화 */
     #right-panel { width:45%; min-width:350px; background:white; border-left:1px solid #ccc; display:flex; flex-direction:column; z-index:1000; flex-shrink: 0; position: relative; overflow: hidden; }
-    
     .overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:3000; display:none; justify-content:center; align-items:center; }
     .modal { background:white; width:95%; max-width:380px; padding:20px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5); border-top:5px solid #2980b9; max-height: 90vh; overflow-y: auto; }
-    
-    /* ✨ 팝업창도 absolute로 우측 패널 안에서만 100% 꽉 차게 고정 (밀림 현상 방지) */
     #status-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; background: #ffffff; z-index: 2000; display: none; flex-direction: column; padding: 10px 15px; overflow-y: auto; box-sizing: border-box; }
-
     #overlay-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:250px; overflow-y:auto; margin:15px 0; border:1px solid #eee; padding:10px; background:#f9f9f9;}
     .mgr-label { cursor:pointer; display:flex; align-items:center; font-size:0.9rem; padding:6px; border-radius:4px; background:white; border:1px solid #ddd;}
-    
     .btn-blue { width:100%; padding:8px; background:#2980b9; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
-    .btn-blue:hover { background:#1f6391; }
     .btn-gray { width:100%; padding:8px; background:#95a5a6; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem; margin-top:5px;}
     .btn-green { width:100%; padding:10px; background:#27ae60; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
-    
-    /* ✨ 상태별 제목 배경 효과를 위한 트랜지션 */
     #modal-shortNum { transition: background 0.3s ease, color 0.3s ease; border-radius: 5px; }
-
     .modal-info-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left; margin-bottom: 8px; line-height: 1.2; }
     .modal-info-table th { background: #f1f2f6; padding: 4px 6px; border: 1px solid #ddd; color: #333; width: 25%; white-space: nowrap; }
     .modal-info-table td { padding: 4px 6px; border: 1px solid #ddd; color: #2c3e50; font-weight: bold; word-break: break-all;}
-    
     .status-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px; }
     .status-select-btn { padding: 8px 5px; border:none; border-radius:5px; color:white; font-weight:bold; cursor:pointer; font-size:0.85rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-    
     .badge-status { padding: 3px 0; border-radius: 3px; font-size: 0.7rem; font-weight: bold; color: white; cursor: pointer; border: none; width: 90%; margin: 0 auto; display: block; line-height: 1.2; box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: all 0.3s ease;}
     .status-none { background: #95a5a6; } .status-good { background: #27ae60; } .status-warn { background: #f39c12; } .status-fail { background: #e74c3c; } 
-
     .info-table { width:100%; border-collapse:collapse; font-size:0.75rem; table-layout:fixed; }
     .info-table th { background:#34495e; color:white; padding:6px 2px; position:sticky; top:0; z-index:10; white-space:nowrap; font-size: 0.75rem; position:relative; }
     .info-table td { border-bottom:1px solid #ddd; padding: 4px 2px; text-align:center; word-break:keep-all; vertical-align:middle; line-height:1.1; overflow:hidden; text-overflow:ellipsis; transition: background 0.3s; }
     .info-table tr:hover { filter: brightness(0.95); cursor:pointer; }
     .selected-row { border-left:4px solid #e67e22; font-weight:bold; filter: brightness(0.9); }
     .error-row { background:#ffebee !important; color:#c0392b; }
-    
-    .resizer { position: absolute; top: 0; right: 0; width: 6px; cursor: col-resize; user-select: none; height: 100%; z-index: 11; border-right: 2px solid #7f8c8d; }
-    .resizer:hover, .resizing { border-right: 3px solid #ff9f43; background-color: rgba(255, 159, 67, 0.2); }
-
     .circle-marker { display:flex; justify-content:center; align-items:center; border-radius:50%; font-weight:900; font-family:'Arial Black', sans-serif; box-shadow:0 3px 6px rgba(0,0,0,0.4); transition:transform 0.3s ease, background 0.3s ease, color 0.3s ease; }
     .circle-marker:hover { transform: scale(1.1); }
-    
     #gps-btn { position: absolute; bottom: 20px; right: 20px; z-index: 2000; background: white; border: 2px solid #2980b9; color: #2980b9; border-radius: 50px; padding: 10px 15px; font-weight: bold; font-size: 0.85rem; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: all 0.3s ease; }
     #gps-btn.active { background: #e74c3c; color: white; border-color: #c0392b; }
-
     #loading { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; display:none; justify-content:center; align-items:center; color:white; flex-direction:column; font-size:1.2rem; }
     .spinner { width:50px; height:50px; border:5px solid #f3f3f3; border-top:5px solid #e67e22; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:15px; }
     @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
-
     #photo-canvas-container { width: 100%; overflow: hidden; margin-top: 10px; border: 2px solid #ddd; display: none; touch-action: none; }
     #photo-canvas { width: 100%; height: auto; display: block; cursor: crosshair; }
-
-    /* ✨ 모바일 화면에서 우측 패널의 크기를 완벽하게 고정 */
     @media (max-width: 768px) {
-        #container { flex-direction: column; overflow: hidden; height: calc(100vh - 40px); }
+        #container { flex-direction: column; overflow: hidden; height: calc(100dvh - 40px); }
         #left-panel { flex-direction: row; width: 100%; height: auto; padding: 5px; border-right: none; border-bottom: 2px solid #2980b9; gap: 5px; align-items: center; z-index: 100;}
         #drop-zone { flex: 1; padding: 5px; min-height: 40px; flex-direction: row; gap: 10px; margin: 0; }
         #drop-zone .icon { font-size: 1.5rem; margin: 0; }
@@ -96,7 +69,6 @@
 <body>
 
 <div id="loading"><div class="spinner"></div><div id="loading-msg">처리 중...</div></div>
-
 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
 
 <div id="manager-overlay" class="overlay">
@@ -150,15 +122,7 @@
             <table class="info-table">
                 <thead>
                     <tr>
-                        <th style="width:8%;">번호</th>
-                        <th style="width:12%;">상태</th>
-                        <th style="width:10%;">담당</th>
-                        <th style="width:18%;">도로명</th>
-                        <th style="width:14%;">지번</th>
-                        <th style="width:22%;">상세</th>
-                        <th style="width:6%;">표지</th>
-                        <th style="width:5%;">제수</th>
-                        <th style="width:5%;">보호</th>
+                        <th style="width:8%;">번호</th><th style="width:12%;">상태</th><th style="width:10%;">담당</th><th style="width:18%;">도로명</th><th style="width:14%;">지번</th><th style="width:22%;">상세</th><th style="width:6%;">표지</th><th style="width:5%;">제수</th><th style="width:5%;">보호</th>
                     </tr>
                 </thead>
                 <tbody id="listBody"><tr><td colspan="9" style="padding:30px; color:#aaa; text-align:center;">엑셀 파일을 로드해주세요.</td></tr></tbody>
@@ -207,15 +171,16 @@
         document.addEventListener(evt, e => e.preventDefault(), { capture: true });
     });
 
-    // ✨ 파이썬 클라우드 주소
     const API_URL = "https://koreanparamedics.pythonanywhere.com";
-
     const COL = { NUM: 7, ROAD: 9, JIBUN: 10, DETAIL: 11, LAT: 12, LNG: 13, SIGN: 18, VALVE: 20, GUARD: 21, MGR: 27 };
     const ACTIVE_COLORS = ['#ff4757', '#2ed573', '#1e90ff']; 
 
     let map, markers=[], workbook=null, worksheet=null, loadedRows=[];
     let currentEditItem = null; 
     let syncInterval = null; 
+    
+    // ✨ 핵심! 현재 업로드된 파일의 '고유 식별자(Room ID)'
+    let currentRoomId = "default_room"; 
 
     map = L.map('map', { zoomControl: false }).setView([35.32, 126.98], 11);
     L.control.zoom({ position: 'bottomleft' }).addTo(map); 
@@ -254,6 +219,10 @@
 
     async function handleFile(file) {
         if(!file) return;
+        
+        // ✨ 채팅방 ID 생성: "파일이름_파일용량" (완벽하게 같은 파일만 같은 방으로 인식)
+        currentRoomId = file.name + "_" + file.size;
+
         document.getElementById('loading-msg').innerText = "파일 및 클라우드 데이터 읽는 중...";
         document.getElementById('loading').style.display = 'flex';
         try {
@@ -270,7 +239,8 @@
             });
             
             try {
-                const res = await fetch(API_URL + '/data');
+                // ✨ URL 끝에 시간(?t=...)을 붙여서 악성 브라우저 캐시를 무력화시킵니다.
+                const res = await fetch(API_URL + '/data?room=' + encodeURIComponent(currentRoomId) + '&t=' + new Date().getTime());
                 const serverData = await res.json();
                 loadedRows.forEach(item => {
                     const sData = serverData[item.num];
@@ -279,7 +249,7 @@
                         item.memo = sData.memo || '';
                     }
                 });
-            } catch(e) { console.log("서버 연결 실패"); }
+            } catch(e) { console.log("서버 연결 실패 또는 방이 비어있음"); }
 
             document.getElementById('file-status').innerHTML = `<span style="color:#2980b9;">${file.name}</span>`;
             showManagerOverlay();
@@ -296,7 +266,8 @@
         syncInterval = setInterval(async () => {
             if(loadedRows.length === 0) return;
             try {
-                const res = await fetch(API_URL + '/data');
+                // ✨ 브라우저 캐시 방지 코드가 들어간 3초 레이더!
+                const res = await fetch(API_URL + '/data?room=' + encodeURIComponent(currentRoomId) + '&t=' + new Date().getTime());
                 const serverData = await res.json();
                 
                 loadedRows.forEach(item => {
@@ -321,7 +292,7 @@
                             }
                             if(currentEditItem && currentEditItem.num === item.num) {
                                 document.getElementById('modal-memo').innerText = item.memo || '-';
-                                updateModalHeaderColor(item.status); // 동기화 시 팝업 색상도 자동 변경
+                                updateModalHeaderColor(item.status);
                             }
                         }
                     }
@@ -398,17 +369,16 @@
         const row = document.getElementById(`row-${id}`); if(row) { row.classList.add('selected-row'); row.scrollIntoView({behavior:'smooth', block:'nearest'}); }
     }
 
-    // ✨ 팝업창 상단의 배경색을 상태에 맞게 바꿔주는 함수
     function updateModalHeaderColor(status) {
         const header = document.getElementById('modal-shortNum');
         if (status === '양호') {
-            header.style.backgroundColor = 'rgba(39, 174, 96, 0.15)'; // 연초록
+            header.style.backgroundColor = 'rgba(39, 174, 96, 0.15)'; 
             header.style.color = '#27ae60';
         } else if (status === '불량') {
-            header.style.backgroundColor = 'rgba(243, 156, 18, 0.15)'; // 연노랑
+            header.style.backgroundColor = 'rgba(243, 156, 18, 0.15)'; 
             header.style.color = '#d35400';
         } else if (status === '고장') {
-            header.style.backgroundColor = 'rgba(231, 76, 60, 0.15)'; // 연빨강
+            header.style.backgroundColor = 'rgba(231, 76, 60, 0.15)'; 
             header.style.color = '#c0392b';
         } else {
             header.style.backgroundColor = 'transparent';
@@ -429,7 +399,7 @@
         const guard = (r.getCell(COL.GUARD).value || "").toString() || '-';
 
         document.getElementById('modal-shortNum').innerText = `[${shortNum}번] 정보 및 점검`;
-        updateModalHeaderColor(currentEditItem.status); // 색상 변경 적용
+        updateModalHeaderColor(currentEditItem.status); 
 
         document.getElementById('modal-mgr').innerText = mgr; 
         document.getElementById('modal-road').innerText = road;
@@ -476,10 +446,12 @@
                 currentEditItem.marker.setIcon(newIcon); 
             }
             
+            // ✨ 상태 저장 시 Room ID 포함 발송
             fetch(API_URL + '/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    room_id: currentRoomId, 
                     id: currentEditItem.num, 
                     status: newStatus,
                     memo: memo,
@@ -491,21 +463,18 @@
         }
     }
 
-    // ✨✨✨ 일괄 양호 처리 함수 추가 ✨✨✨
     async function setAllGood() {
         if(!confirm("현재 목록에 있는 모든 '미점검' 용수를 '양호'로 일괄 변경하시겠습니까?\n(이미 불량/고장으로 체크된 용수도 양호로 덮어씌워집니다.)")) return;
         
         document.getElementById('loading-msg').innerText = "일괄 양호 처리 중... (서버 전송)";
         document.getElementById('loading').style.display = 'flex';
         
-        // 현재 리스트(화면)에 표시된 용수들만 추려냅니다.
         const targets = loadedRows.filter(item => document.getElementById(`row-${item.num}`) && item.status !== '양호');
         
         for(let item of targets) {
             item.status = '양호';
             item.memo = '';
             
-            // UI 즉시 변경
             const rowBtn = document.querySelector(`#row-${item.num} .badge-status`);
             if(rowBtn) {
                 rowBtn.innerText = '양호';
@@ -515,11 +484,11 @@
                 item.marker.setIcon(createMarkerIcon(item.shortNum, item.mgrColor, '양호'));
             }
             
-            // 서버로 순차 전송 (서버 무리 안 가게 하나씩)
             await fetch(API_URL + '/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    room_id: currentRoomId,
                     id: item.num,
                     status: '양호',
                     memo: '',
