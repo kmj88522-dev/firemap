@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🚒 소방용수 통합관제 v85 (사진자동화)</title>
+<title>🚒 소방용수 통합관제 v86 (초고속촬영)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -65,8 +65,9 @@
     #loading { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; display:none; justify-content:center; align-items:center; color:white; flex-direction:column; font-size:1.1rem; font-weight:bold;}
     .spinner { width:50px; height:50px; border:5px solid #f3f3f3; border-top:5px solid #e67e22; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:15px; }
     @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
-    #photo-canvas-container { width: 100%; overflow: hidden; margin-top: 10px; border: 2px solid #ddd; display: none; }
-    #photo-canvas { width: 100%; height: auto; display: block; }
+    
+    /* 화면에 보이지 않는 백그라운드 사진 캔버스 */
+    #photo-canvas-container { display: none; }
     
     @media (max-width: 768px) {
         #container { flex-direction: column; overflow: hidden; height: calc(100dvh - 40px); }
@@ -103,7 +104,7 @@
 </div>
 
 <div id="header">
-    <h3 class="header-title">🚒 소방용수 <span style="font-size:0.7rem; font-weight:normal; color:#bdc3c7;">v85</span></h3>
+    <h3 class="header-title">🚒 소방용수 <span style="font-size:0.7rem; font-weight:normal; color:#bdc3c7;">v86</span></h3>
     <div class="header-marquee" id="header-filename-area">
         <marquee scrollamount="4" style="font-size:0.85rem; color:#f1c40f; font-weight:bold;" id="header-filename"></marquee>
     </div>
@@ -169,16 +170,9 @@
                 </div>
                 <button class="btn-blue" style="margin-top:2px; background:#3498db;" onclick="triggerCamera()">📸 현장 사진 촬영 (메일 첨부용)</button>
             </div>
-
-            <div id="photo-editor-area" style="display:none;">
-                <p style="font-size:0.75rem; color:#27ae60; margin: 2px 0; font-weight:bold;">💡 사진이 최적화되었습니다. 확인 후 보관하세요.</p>
-                <div id="photo-canvas-container">
-                    <canvas id="photo-canvas"></canvas>
-                </div>
-                <div style="display:flex; gap:5px; margin-top:5px;">
-                    <button class="btn-green" style="flex:1;" onclick="saveEditedPhoto()">✅ 확인 및 임시보관</button>
-                    <button class="btn-gray" style="flex:1; background:#e74c3c;" onclick="cancelPhotoEdit()">❌ 다시 찍기</button>
-                </div>
+            
+            <div id="photo-canvas-container">
+                <canvas id="photo-canvas"></canvas>
             </div>
         </div>
     </div>
@@ -282,7 +276,6 @@
                         if(rowBtn) {
                             let statusClass = 'status-none'; 
                             if(item.status === '양호') statusClass = 'status-good'; else if(item.status === '불량') statusClass = 'status-warn'; else if(item.status === '고장') statusClass = 'status-fail'; 
-                            // ✨ 목록에서 사진이 있으면 📸 아이콘 자동 동기화 표시
                             let photoIcon = item.photoBase64 ? " 📸" : "";
                             rowBtn.innerText = item.status + (item.memo ? " 💬" : "") + photoIcon; 
                             rowBtn.className = `badge-status ${statusClass}`;
@@ -379,8 +372,6 @@
         document.getElementById('modal-memo').innerText = currentEditItem.memo || '-';
 
         document.getElementById('default-info-area').style.display = 'block';
-        document.getElementById('photo-editor-area').style.display = 'none';
-        clearCanvas();
         document.getElementById('status-overlay').style.display = 'flex';
     }
 
@@ -416,7 +407,6 @@
         if(!confirm("현재 목록에 있는 모든 '미점검' 용수를 '양호'로 일괄 변경하시겠습니까?")) return;
         document.getElementById('loading-msg').innerText = "일괄 양호 처리 중..."; document.getElementById('loading').style.display = 'flex';
         const targetNames = Array.from(document.querySelectorAll('.mgr-check:checked')).map(c => c.value);
-        // ✨ 선택된 담당자의 미점검 용수만 일괄 양호 처리
         const targets = loadedRows.filter(item => document.getElementById(`row-${item.num}`) && item.status !== '양호' && targetNames.includes(item.mgrName));
         for(let item of targets) {
             item.status = '양호'; item.memo = '';
@@ -438,48 +428,44 @@
 
     const canvas = document.getElementById('photo-canvas'); const ctx = canvas.getContext('2d'); const cameraInput = document.getElementById('cameraInput'); let originalImage = null;
     function triggerCamera() { cameraInput.click(); }
+    
+    // ✨ 사진 촬영 시 알림/확인 없이 바로 자동 압축 & 저장 & 창 닫기 로직 적용!
     cameraInput.addEventListener('change', function(e) {
         if (e.target.files && e.target.files[0]) {
-            // 로딩 메시지 없이 부드럽게 넘어가도록 수정
+            document.getElementById('loading-msg').innerText = "사진 자동 저장 중..."; 
+            document.getElementById('loading').style.display = 'flex';
+            
             const reader = new FileReader();
             reader.onload = function(event) {
                 originalImage = new Image();
                 originalImage.onload = function() {
-                    drawBaseImageWithOverlay();
-                    document.getElementById('default-info-area').style.display = 'none';
-                    document.getElementById('photo-editor-area').style.display = 'block';
+                    const maxWidth = 600; const scale = maxWidth / originalImage.width; canvas.width = maxWidth; canvas.height = originalImage.height * scale;
+                    ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+                    
+                    // 워터마크 표시 (사진 하단)
+                    const overlayHeight = 40; ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; ctx.fillRect(0, canvas.height - overlayHeight, canvas.width, overlayHeight);
+                    ctx.fillStyle = 'white'; ctx.font = 'bold 20px "Malgun Gothic", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText(`[${currentEditItem.shortNum}번 용수] 담당: ${currentEditItem.mgrName}`, canvas.width / 2, canvas.height - (overlayHeight / 2));
+                    
+                    // 품질 60%로 초압축하여 즉시 메모리에 보관 (다시 찍으면 이전 사진 자동 덮어쓰기)
+                    const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
+                    currentEditItem.photoBase64 = compressedBase64;
+                    
+                    // 목록 버튼에 📸 아이콘 즉시 추가
+                    const rowBtn = document.querySelector(`#row-${currentEditItem.num} .badge-status`);
+                    if(rowBtn && !rowBtn.innerText.includes('📸')) {
+                        rowBtn.innerText = rowBtn.innerText + " 📸";
+                    }
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    closeStatusModal(); // 번거로운 확인 창 없이 모달 자동 종료
                 }
                 originalImage.src = event.target.result;
             }
             reader.readAsDataURL(e.target.files[0]);
+            cameraInput.value = ''; // 같은 파일을 다시 찍을 수 있도록 input 초기화
         }
     });
-
-    function drawBaseImageWithOverlay() {
-        const maxWidth = 600; const scale = maxWidth / originalImage.width; canvas.width = maxWidth; canvas.height = originalImage.height * scale;
-        ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
-        const overlayHeight = 40; ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; ctx.fillRect(0, canvas.height - overlayHeight, canvas.width, overlayHeight);
-        ctx.fillStyle = 'white'; ctx.font = 'bold 20px "Malgun Gothic", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(`[${currentEditItem.shortNum}번 용수] 담당: ${currentEditItem.mgrName}`, canvas.width / 2, canvas.height - (overlayHeight / 2));
-    }
-
-    // ✨ 원 그리기 기능 삭제 및 조용히 보관하는 로직
-    function saveEditedPhoto() {
-        if (!currentEditItem) return;
-        // 0.6 품질(약 60%)로 초압축하여 메모리에 바로 보관 (알림창 삭제)
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
-        currentEditItem.photoBase64 = compressedBase64;
-        
-        // 목록 버튼에 📸 아이콘 즉시 추가
-        const rowBtn = document.querySelector(`#row-${currentEditItem.num} .badge-status`);
-        if(rowBtn && !rowBtn.innerText.includes('📸')) {
-            rowBtn.innerText = rowBtn.innerText + " 📸";
-        }
-        closeStatusModal(); 
-    }
-
-    function cancelPhotoEdit() { clearCanvas(); document.getElementById('photo-editor-area').style.display = 'none'; document.getElementById('default-info-area').style.display = 'block'; cameraInput.value = ''; }
-    function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); originalImage = null; }
 
     async function resetWork() { 
         if(!confirm("⚠️ 경고: 초기화하시면 '서버에 저장된 현재 엑셀 파일의 작업 기록'까지 모두 삭제됩니다. 계속하시겠습니까?")) return; 
@@ -526,14 +512,15 @@
             let count = 1;
             loadedRows.forEach(item => {
                 const r = item.row; const mgr = (r.getCell(COL.MGR).value || "").toString().trim();
-                // ✨ 선택된 담당자의 데이터만 엑셀에 저장!
                 if(targetNames.includes(mgr)) {
                     let fullNum = (r.getCell(COL.NUM).value || "").toString(); let road = (r.getCell(COL.ROAD).value || "").toString(); let jibun = (r.getCell(COL.JIBUN).value || "").toString(); let detail = (r.getCell(COL.DETAIL).value || "").toString(); let sign = (r.getCell(COL.SIGN).value || "").toString(); let valve = (r.getCell(COL.VALVE).value || "").toString(); let guard = (r.getCell(COL.GUARD).value || "").toString();
                     newWs.addRow([count++, fullNum, item.status, item.memo || "", mgr, road, jibun, detail, sign, valve, guard]);
                 }
             });
             newWs.columns = [{ width: 6 }, { width: 15 }, { width: 10 }, { width: 25 }, { width: 10 }, { width: 25 }, { width: 25 }, { width: 30 }, { width: 10 }, { width: 10 }, { width: 10 }];
-            const buffer = await newWb.xlsx.writeBuffer(); const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); const today = new Date().toISOString().slice(2,10).replace(/-/g,''); link.download = `소방용수_실시간저장본_${today}.xlsx`; link.click(); 
+            const buffer = await newWb.xlsx.writeBuffer(); const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); 
+            // 엑셀 저장 파일명도 변경
+            const today = new Date().toISOString().slice(2,10).replace(/-/g,''); link.download = `${today}_소방용수조사.xlsx`; link.click(); 
         } catch(err) { alert("엑셀 생성 오류: " + err.message); } finally { document.getElementById('loading').style.display = 'none'; }
     }
 
@@ -559,14 +546,13 @@
 
             loadedRows.forEach(item => {
                 const r = item.row; const mgr = (r.getCell(COL.MGR).value || "").toString().trim();
-                // ✨ 이메일 보낼 때도 '선택된 담당자'의 데이터만 필터링!
                 if(targetNames.includes(mgr)) {
                     newWs.addRow([count++, (r.getCell(COL.NUM).value || "").toString(), item.status, item.memo || "", mgr, (r.getCell(COL.ROAD).value || "").toString(), (r.getCell(COL.JIBUN).value || "").toString(), (r.getCell(COL.DETAIL).value || "").toString()]);
                     
-                    // 해당 담당자의 용수에 첨부된 사진만 수집
+                    // ✨ 사진 파일명을 '017_김민주.jpg' 형태로 지정
                     if(item.photoBase64) {
                         attachedPhotos.push({
-                            filename: `${item.shortNum}번용수_${item.mgrName}.jpg`,
+                            filename: `${item.shortNum}_${item.mgrName}.jpg`,
                             data: item.photoBase64
                         });
                     }
