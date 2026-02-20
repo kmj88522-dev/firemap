@@ -3,21 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🚒 소방용수 통합관제 v81</title>
+<title>🚒 소방용수 통합관제 v82</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; width: 100vw; height: 100vh; height: 100dvh; position: fixed; top: 0; left: 0; display: flex; flex-direction: column; overflow: hidden; background-color: #f4f6f9; }
-    #header { height:40px; background:#2c3e50; color:white; display:flex; align-items:center; padding:0 15px; border-bottom:3px solid #ff9f43; flex-shrink: 0; z-index: 5000; position: relative; }
+    #header { height:40px; background:#2c3e50; color:white; display:flex; align-items:center; justify-content:space-between; padding:0 15px; border-bottom:3px solid #ff9f43; flex-shrink: 0; z-index: 5000; position: relative; }
     @keyframes blink { 0% { opacity:1; } 50% { opacity:0.3; } 100% { opacity:1; } }
-    .sync-badge { font-size:0.7rem; background:#27ae60; padding:3px 8px; border-radius:12px; margin-left:10px; font-weight:bold; animation: blink 2s infinite; box-shadow: 0 0 5px #27ae60; }
-    #container { display:flex; flex:1; height:calc(100vh - 40px); height:calc(100dvh - 40px); position:relative; width: 100%; overflow: hidden; }
+    .sync-badge { font-size:0.7rem; background:#27ae60; padding:3px 8px; border-radius:12px; font-weight:bold; animation: blink 2s infinite; box-shadow: 0 0 5px #27ae60; display:none; }
+    #container { display:flex; flex:1; height:calc(100dvh - 40px); position:relative; width: 100%; overflow: hidden; }
     #left-panel { width:240px; background:white; border-right:1px solid #ccc; display:flex; flex-direction:column; padding:10px; z-index:1000; flex-shrink: 0; gap: 8px;}
-    #drop-zone { border: 2px dashed #bdc3c7; border-radius: 6px; background: #fafafa; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #7f8c8d; cursor: pointer; transition: all 0.3s ease; padding: 15px 5px; min-height: 100px; }
-    #drop-zone:hover, #drop-zone.dragover { background: #e0f7fa; border-color: #00bcd4; color: #00838f; }
-    #drop-zone .icon { font-size: 2rem; margin-bottom: 5px; }
+    #drop-zone { border: 2px dashed #bdc3c7; border-radius: 6px; background: #fafafa; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #7f8c8d; cursor: pointer; transition: all 0.3s ease; padding: 15px 5px; min-height: 80px; }
+    #drop-zone .icon { font-size: 1.5rem; margin-bottom: 5px; }
     #file-status { font-size: 0.85rem; font-weight: bold; line-height: 1.3; word-break: break-all;}
     #map-wrapper { flex:1; position: relative; z-index: 1; min-height: 250px; }
     #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
@@ -28,8 +27,9 @@
     #overlay-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:250px; overflow-y:auto; margin:15px 0; border:1px solid #eee; padding:10px; background:#f9f9f9;}
     .mgr-label { cursor:pointer; display:flex; align-items:center; font-size:0.9rem; padding:6px; border-radius:4px; background:white; border:1px solid #ddd;}
     .btn-blue { width:100%; padding:8px; background:#2980b9; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
-    .btn-gray { width:100%; padding:8px; background:#95a5a6; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem; margin-top:5px;}
-    .btn-green { width:100%; padding:10px; background:#27ae60; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
+    .btn-gray { width:100%; padding:8px; background:#95a5a6; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
+    .btn-green { width:100%; padding:8px; background:#27ae60; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
+    .btn-purple { width:100%; padding:10px; background:#8e44ad; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem; margin-top:5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
     #modal-shortNum { transition: background 0.3s ease, color 0.3s ease; border-radius: 5px; }
     .modal-info-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left; margin-bottom: 8px; line-height: 1.2; }
     .modal-info-table th { background: #f1f2f6; padding: 4px 6px; border: 1px solid #ddd; color: #333; width: 25%; white-space: nowrap; }
@@ -48,18 +48,18 @@
     .circle-marker:hover { transform: scale(1.1); }
     #gps-btn { position: absolute; bottom: 20px; right: 20px; z-index: 2000; background: white; border: 2px solid #2980b9; color: #2980b9; border-radius: 50px; padding: 10px 15px; font-weight: bold; font-size: 0.85rem; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: all 0.3s ease; }
     #gps-btn.active { background: #e74c3c; color: white; border-color: #c0392b; }
-    #loading { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; display:none; justify-content:center; align-items:center; color:white; flex-direction:column; font-size:1.2rem; }
+    #loading { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; display:none; justify-content:center; align-items:center; color:white; flex-direction:column; font-size:1.1rem; font-weight:bold;}
     .spinner { width:50px; height:50px; border:5px solid #f3f3f3; border-top:5px solid #e67e22; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:15px; }
     @keyframes spin { 0% { transform:rotate(0deg); } 100% { transform:rotate(360deg); } }
     #photo-canvas-container { width: 100%; overflow: hidden; margin-top: 10px; border: 2px solid #ddd; display: none; touch-action: none; }
     #photo-canvas { width: 100%; height: auto; display: block; cursor: crosshair; }
     @media (max-width: 768px) {
         #container { flex-direction: column; overflow: hidden; height: calc(100dvh - 40px); }
-        #left-panel { flex-direction: row; width: 100%; height: auto; padding: 5px; border-right: none; border-bottom: 2px solid #2980b9; gap: 5px; align-items: center; z-index: 100;}
-        #drop-zone { flex: 1; padding: 5px; min-height: 40px; flex-direction: row; gap: 10px; margin: 0; }
-        #drop-zone .icon { font-size: 1.5rem; margin: 0; }
-        #file-status { font-size: 0.8rem; text-align: left; }
-        .action-btns { display: flex; flex-direction: column; gap: 3px; width: 120px; }
+        #left-panel { flex-direction: row; width: 100%; height: auto; padding: 5px; border-right: none; border-bottom: 2px solid #2980b9; gap: 5px; align-items: center; z-index: 100; overflow-x: auto;}
+        #drop-zone { flex: 1; padding: 5px; min-height: 40px; flex-direction: row; gap: 10px; margin: 0; min-width:120px;}
+        #drop-zone .icon { font-size: 1.2rem; margin: 0; }
+        #file-status { font-size: 0.75rem; text-align: left; }
+        .action-btns { display: flex; flex-direction: column; gap: 3px; min-width: 130px; }
         .action-btns button { padding: 5px; font-size: 0.75rem; margin: 0; }
         #map-wrapper { flex: 1; min-height: 40vh; width: 100%; z-index: 1; }
         #right-panel { height: 42vh; width: 100%; border-left: none; border-top: 2px solid #34495e; position: relative; overflow: hidden; z-index: 10; }
@@ -68,7 +68,7 @@
 </head>
 <body>
 
-<div id="loading"><div class="spinner"></div><div id="loading-msg">처리 중...</div></div>
+<div id="loading"><div class="spinner"></div><div id="loading-msg" style="text-align:center;">처리 중...</div></div>
 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
 
 <div id="manager-overlay" class="overlay">
@@ -86,10 +86,8 @@
 </div>
 
 <div id="header">
-    <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center;">
-        🚒 소방용수 통합관제 
-        <span class="sync-badge" id="sync-indicator" style="display:none;">📡 라이브 동기화 중</span>
-    </h3>
+    <h3 style="margin:0; font-size:1.1rem;">🚒 소방용수 통합관제 <span style="font-size:0.7rem; font-weight:normal; color:#bdc3c7;">v82</span></h3>
+    <span class="sync-badge" id="sync-indicator">📡 실시간 연동 중</span>
 </div>
 
 <div id="container">
@@ -100,8 +98,11 @@
             <input type="file" id="excelFile" accept=".xlsx" style="display:none;" />
         </label>
         <div class="action-btns">
-            <button class="btn-green" onclick="exportExcel()">💾 엑셀 파일 추출</button>
-            <button class="btn-gray" onclick="resetWork()">🔄 데이터 초기화</button>
+            <button class="btn-purple" onclick="sendReportEmail()">📧 공직자메일 원터치 보고</button>
+            <div style="display:flex; gap:3px;">
+                <button class="btn-green" style="flex:1;" onclick="exportExcel()">💾 엑셀 저장</button>
+                <button class="btn-gray" style="flex:1;" onclick="resetWork()">🔄 초기화</button>
+            </div>
         </div>
     </div>
 
@@ -121,9 +122,7 @@
         <div style="overflow:auto; flex:1;">
             <table class="info-table">
                 <thead>
-                    <tr>
-                        <th style="width:8%;">번호</th><th style="width:12%;">상태</th><th style="width:10%;">담당</th><th style="width:18%;">도로명</th><th style="width:14%;">지번</th><th style="width:22%;">상세</th><th style="width:6%;">표지</th><th style="width:5%;">제수</th><th style="width:5%;">보호</th>
-                    </tr>
+                    <tr><th style="width:8%;">번호</th><th style="width:12%;">상태</th><th style="width:10%;">담당</th><th style="width:18%;">도로명</th><th style="width:14%;">지번</th><th style="width:22%;">상세</th><th style="width:6%;">표지</th><th style="width:5%;">제수</th><th style="width:5%;">보호</th></tr>
                 </thead>
                 <tbody id="listBody"><tr><td colspan="9" style="padding:30px; color:#aaa; text-align:center;">엑셀 파일을 로드해주세요.</td></tr></tbody>
             </table>
@@ -148,7 +147,7 @@
                     <button class="status-select-btn" style="background:#e74c3c;" onclick="saveStatus('고장')">🔴 고장</button>
                     <button class="status-select-btn" style="background:#95a5a6;" onclick="saveStatus('미점검')">⚪ 초기화</button>
                 </div>
-                <button class="btn-blue" style="margin-top:2px; background:#3498db;" onclick="triggerCamera()">📷 현장 사진 촬영 및 표시</button>
+                <button class="btn-blue" style="margin-top:2px; background:#3498db;" onclick="triggerCamera()">📷 현장 사진 촬영 및 보관</button>
             </div>
 
             <div id="photo-editor-area" style="display:none;">
@@ -157,7 +156,7 @@
                     <canvas id="photo-canvas"></canvas>
                 </div>
                 <div style="display:flex; gap:5px; margin-top:5px;">
-                    <button class="btn-green" style="flex:1;" onclick="saveEditedPhoto()">💾 사진 저장</button>
+                    <button class="btn-green" style="flex:1;" onclick="saveEditedPhoto()">💾 압축보관 (메일용)</button>
                     <button class="btn-gray" style="flex:1; background:#e74c3c;" onclick="cancelPhotoEdit()">❌ 취소</button>
                 </div>
             </div>
@@ -178,22 +177,13 @@
     let map, markers=[], workbook=null, worksheet=null, loadedRows=[];
     let currentEditItem = null; 
     let syncInterval = null; 
-    
-    // ✨ 용량을 지우고 오직 파일 이름만 가져와서 채팅방 아이디로 씁니다!
     let currentRoomId = "default_room"; 
 
     map = L.map('map', { zoomControl: false }).setView([35.32, 126.98], 11);
     L.control.zoom({ position: 'bottomleft' }).addTo(map); 
     
-    const vworldBase = L.tileLayer('https://xdworld.vworld.kr/2d/Base/service/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© Vworld' });
-    const vworldSatellite = L.tileLayer('https://xdworld.vworld.kr/2d/Satellite/service/{z}/{x}/{y}.jpeg', { maxZoom: 19, attribution: '© Vworld' });
-    const vworldHybrid = L.tileLayer('https://xdworld.vworld.kr/2d/Hybrid/service/{z}/{x}/{y}.png', { maxZoom: 19 });
-    const osmBase = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OSM' });
-
+    const vworldBase = L.tileLayer('https://xdworld.vworld.kr/2d/Base/service/{z}/{x}/{y}.png', { maxZoom: 19 });
     vworldBase.addTo(map);
-    const hybridGroup = L.layerGroup([vworldSatellite, vworldHybrid]);
-    const baseMaps = { "🗺️ 일반 지도": vworldBase, "🛰️ 위성+지명": hybridGroup, "⚡ 예비용": osmBase };
-    L.control.layers(baseMaps).addTo(map);
 
     function getLightColor(hexColor) {
         if(!hexColor || hexColor.length < 7) return 'rgba(255, 255, 255, 0)';
@@ -219,11 +209,8 @@
 
     async function handleFile(file) {
         if(!file) return;
-        
-        // ✨ 채팅방 ID 생성: 오직 "파일 이름"만 사용! 용량이 달라도 이름만 같으면 연동됨.
         currentRoomId = file.name;
-
-        document.getElementById('loading-msg').innerText = "파일 및 클라우드 데이터 읽는 중...";
+        document.getElementById('loading-msg').innerText = "파일 읽는 중...";
         document.getElementById('loading').style.display = 'flex';
         try {
             const buffer = await file.arrayBuffer();
@@ -234,7 +221,8 @@
             
             worksheet.eachRow((row, rowNumber) => { 
                 if(rowNumber >= 3) {
-                    loadedRows.push({ row: row, num: rowNumber, status: '미점검', shortNum: '', mgrColor: '#333', marker: null, mgrName: '', memo: '' }); 
+                    // ✨ photoBase64 변수를 추가하여 폰 메모리에 사진을 임시 보관합니다.
+                    loadedRows.push({ row: row, num: rowNumber, status: '미점검', shortNum: '', mgrColor: '#333', marker: null, mgrName: '', memo: '', photoBase64: null }); 
                 }
             });
             
@@ -243,12 +231,9 @@
                 const serverData = await res.json();
                 loadedRows.forEach(item => {
                     const sData = serverData[item.num];
-                    if(sData) {
-                        item.status = sData.status;
-                        item.memo = sData.memo || '';
-                    }
+                    if(sData) { item.status = sData.status; item.memo = sData.memo || ''; }
                 });
-            } catch(e) { console.log("서버 연결 실패 또는 방이 비어있음"); }
+            } catch(e) { console.log("서버 연결 실패"); }
 
             document.getElementById('file-status').innerHTML = `<span style="color:#2980b9;">${file.name}</span>`;
             showManagerOverlay();
@@ -267,35 +252,23 @@
             try {
                 const res = await fetch(API_URL + '/data?room=' + encodeURIComponent(currentRoomId) + '&t=' + new Date().getTime());
                 const serverData = await res.json();
-                
                 loadedRows.forEach(item => {
                     const sData = serverData[item.num];
-                    if(sData) {
-                        if(item.status !== sData.status || item.memo !== sData.memo) {
-                            item.status = sData.status;
-                            item.memo = sData.memo || '';
-                            
-                            const rowBtn = document.querySelector(`#row-${item.num} .badge-status`);
-                            if(rowBtn) {
-                                let statusClass = 'status-none'; 
-                                if(item.status === '양호') statusClass = 'status-good'; 
-                                else if(item.status === '불량') statusClass = 'status-warn'; 
-                                else if(item.status === '고장') statusClass = 'status-fail'; 
-                                rowBtn.innerText = item.status + (item.memo ? " 💬" : "");
-                                rowBtn.className = `badge-status ${statusClass}`;
-                            }
-                            if(item.marker) { 
-                                const newIcon = createMarkerIcon(item.shortNum, item.mgrColor, item.status); 
-                                item.marker.setIcon(newIcon); 
-                            }
-                            if(currentEditItem && currentEditItem.num === item.num) {
-                                document.getElementById('modal-memo').innerText = item.memo || '-';
-                                updateModalHeaderColor(item.status);
-                            }
+                    if(sData && (item.status !== sData.status || item.memo !== sData.memo)) {
+                        item.status = sData.status; item.memo = sData.memo || '';
+                        const rowBtn = document.querySelector(`#row-${item.num} .badge-status`);
+                        if(rowBtn) {
+                            let statusClass = 'status-none'; 
+                            if(item.status === '양호') statusClass = 'status-good'; else if(item.status === '불량') statusClass = 'status-warn'; else if(item.status === '고장') statusClass = 'status-fail'; 
+                            rowBtn.innerText = item.status + (item.memo ? " 💬" : ""); rowBtn.className = `badge-status ${statusClass}`;
+                        }
+                        if(item.marker) item.marker.setIcon(createMarkerIcon(item.shortNum, item.mgrColor, item.status)); 
+                        if(currentEditItem && currentEditItem.num === item.num) {
+                            document.getElementById('modal-memo').innerText = item.memo || '-'; updateModalHeaderColor(item.status);
                         }
                     }
                 });
-            } catch(e) { console.log("동기화 대기중..."); }
+            } catch(e) {}
         }, 3000); 
     }
 
@@ -312,7 +285,6 @@
     function confirmManager() {
         const checks = document.querySelectorAll('.mgr-check:checked');
         if(checks.length === 0) return alert("최소 1명의 담당자를 선택하세요.");
-        if(checks.length > 3) return alert("담당자는 최대 3명까지만 선택할 수 있습니다.");
         const targets = Array.from(checks).map((c, idx) => ({ name: c.value, color: ACTIVE_COLORS[idx] || '#333' }));
         document.getElementById('manager-overlay').style.display = 'none';
         setTimeout(() => map.invalidateSize(), 300); renderMapAndTable(targets);
@@ -328,32 +300,23 @@
             if(targetNames.includes(mgr)) {
                 let fullNum = (r.getCell(COL.NUM).value || "?").toString();
                 let shortNum = fullNum.split('-').pop().replace('호', '');
-                const matchedTarget = targets.find(t => t.name === mgr);
-                const mgrColor = matchedTarget ? matchedTarget.color : '#333';
-                item.shortNum = shortNum; item.mgrColor = mgrColor; item.mgrName = mgr;
+                item.shortNum = shortNum; item.mgrColor = (targets.find(t => t.name === mgr) || {}).color || '#333'; item.mgrName = mgr;
                 
                 const lat = parseFloat(r.getCell(COL.LAT).value); const lng = parseFloat(r.getCell(COL.LNG).value);
                 const isValidLocation = !isNaN(lat) && !isNaN(lng) && lat > 30 && lng > 120;
-                let road = (r.getCell(COL.ROAD).value || "").toString().replace(/전라남도\s*담양군\s*/g, '').trim();
-                let jibun = (r.getCell(COL.JIBUN).value || "").toString().replace(/전라남도\s*담양군\s*/g, '').trim();
-                let sign = (r.getCell(COL.SIGN).value || "").toString().replace(/입상식/g, '').trim();
-                const detail = (r.getCell(COL.DETAIL).value || "").toString(); const valve = (r.getCell(COL.VALVE).value || "").toString(); const guard = (r.getCell(COL.GUARD).value || "").toString();
-
+                
                 if(isValidLocation) {
-                    const icon = createMarkerIcon(shortNum, mgrColor, item.status);
-                    const marker = L.marker([lat, lng], { icon: icon }).addTo(map);
+                    const marker = L.marker([lat, lng], { icon: createMarkerIcon(shortNum, item.mgrColor, item.status) }).addTo(map);
                     marker.on('click', (e) => { highlightRow(item.num); openStatusModal(e, item.num, shortNum); });
                     item.marker = marker; markers.push(marker); bounds.push([lat, lng]); validCount++;
                 }
                 
-                let statusClass = 'status-none'; if(item.status === '양호') statusClass = 'status-good'; if(item.status === '불량') statusClass = 'status-warn'; if(item.status === '고장') statusClass = 'status-fail';
+                let statusClass = 'status-none'; if(item.status === '양호') statusClass = 'status-good'; else if(item.status === '불량') statusClass = 'status-warn'; else if(item.status === '고장') statusClass = 'status-fail';
                 const tr = document.createElement('tr'); tr.id = `row-${item.num}`;
-                if(isValidLocation) tr.style.backgroundColor = getLightColor(mgrColor); else tr.classList.add('error-row');
+                if(isValidLocation) tr.style.backgroundColor = getLightColor(item.mgrColor); else tr.classList.add('error-row');
                 
-                let statusText = item.status;
-                if(item.memo) statusText += " 💬";
-
-                tr.innerHTML = `<td><b>${shortNum}</b></td><td onclick="event.stopPropagation()"><button class="badge-status ${statusClass}" onclick="openStatusModal(event, ${item.num}, '${shortNum}')">${statusText}</button></td><td style="color:${mgrColor}; font-weight:bold;">${mgr}</td><td>${road}</td><td>${jibun}</td><td style="font-size:0.7rem;">${detail}</td><td>${sign}</td><td>${valve}</td><td>${guard}</td>`;
+                let statusText = item.status; if(item.memo) statusText += " 💬";
+                tr.innerHTML = `<td><b>${shortNum}</b></td><td onclick="event.stopPropagation()"><button class="badge-status ${statusClass}" onclick="openStatusModal(event, ${item.num}, '${shortNum}')">${statusText}</button></td><td style="color:${item.mgrColor}; font-weight:bold;">${mgr}</td><td>${(r.getCell(COL.ROAD).value || "").toString().replace(/전라남도\s*담양군\s*/g, '').trim()}</td><td>${(r.getCell(COL.JIBUN).value || "").toString().replace(/전라남도\s*담양군\s*/g, '').trim()}</td><td style="font-size:0.7rem;">${(r.getCell(COL.DETAIL).value || "").toString()}</td><td>${(r.getCell(COL.SIGN).value || "").toString().replace(/입상식/g, '').trim()}</td><td>${(r.getCell(COL.VALVE).value || "").toString()}</td><td>${(r.getCell(COL.GUARD).value || "").toString()}</td>`;
                 tr.onclick = () => { if(isValidLocation) map.setView([lat, lng], 18); highlightRow(item.num); };
                 tbody.appendChild(tr);
             }
@@ -369,49 +332,30 @@
 
     function updateModalHeaderColor(status) {
         const header = document.getElementById('modal-shortNum');
-        if (status === '양호') {
-            header.style.backgroundColor = 'rgba(39, 174, 96, 0.15)'; 
-            header.style.color = '#27ae60';
-        } else if (status === '불량') {
-            header.style.backgroundColor = 'rgba(243, 156, 18, 0.15)'; 
-            header.style.color = '#d35400';
-        } else if (status === '고장') {
-            header.style.backgroundColor = 'rgba(231, 76, 60, 0.15)'; 
-            header.style.color = '#c0392b';
-        } else {
-            header.style.backgroundColor = 'transparent';
-            header.style.color = '#2c3e50';
-        }
+        if (status === '양호') { header.style.backgroundColor = 'rgba(39, 174, 96, 0.15)'; header.style.color = '#27ae60'; } 
+        else if (status === '불량') { header.style.backgroundColor = 'rgba(243, 156, 18, 0.15)'; header.style.color = '#d35400'; } 
+        else if (status === '고장') { header.style.backgroundColor = 'rgba(231, 76, 60, 0.15)'; header.style.color = '#c0392b'; } 
+        else { header.style.backgroundColor = 'transparent'; header.style.color = '#2c3e50'; }
     }
 
     function openStatusModal(e, rowNum, shortNum) {
         if(e && typeof e.stopPropagation === 'function') e.stopPropagation();
         currentEditItem = loadedRows.find(item => item.num === rowNum);
         const r = currentEditItem.row;
-        const mgr = (r.getCell(COL.MGR).value || "").toString().trim();
-        const road = (r.getCell(COL.ROAD).value || "").toString().replace(/전라남도\s*담양군\s*/g, '').trim() || '-';
-        const jibun = (r.getCell(COL.JIBUN).value || "").toString().replace(/전라남도\s*담양군\s*/g, '').trim() || '-';
-        const detail = (r.getCell(COL.DETAIL).value || "").toString() || '-';
-        const sign = (r.getCell(COL.SIGN).value || "").toString().replace(/입상식/g, '').trim() || '-';
-        const valve = (r.getCell(COL.VALVE).value || "").toString() || '-';
-        const guard = (r.getCell(COL.GUARD).value || "").toString() || '-';
-
         document.getElementById('modal-shortNum').innerText = `[${shortNum}번] 정보 및 점검`;
         updateModalHeaderColor(currentEditItem.status); 
-
-        document.getElementById('modal-mgr').innerText = mgr; 
-        document.getElementById('modal-road').innerText = road;
-        document.getElementById('modal-jibun').innerText = jibun; 
-        document.getElementById('modal-detail').innerText = detail;
-        document.getElementById('modal-sign').innerText = sign; 
-        document.getElementById('modal-valve').innerText = valve; 
-        document.getElementById('modal-guard').innerText = guard;
+        document.getElementById('modal-mgr').innerText = currentEditItem.mgrName; 
+        document.getElementById('modal-road').innerText = (r.getCell(COL.ROAD).value || "").toString().replace(/전라남도\s*담양군\s*/g, '').trim() || '-';
+        document.getElementById('modal-jibun').innerText = (r.getCell(COL.JIBUN).value || "").toString().replace(/전라남도\s*담양군\s*/g, '').trim() || '-';
+        document.getElementById('modal-detail').innerText = (r.getCell(COL.DETAIL).value || "").toString() || '-';
+        document.getElementById('modal-sign').innerText = (r.getCell(COL.SIGN).value || "").toString().replace(/입상식/g, '').trim() || '-';
+        document.getElementById('modal-valve').innerText = (r.getCell(COL.VALVE).value || "").toString() || '-';
+        document.getElementById('modal-guard').innerText = (r.getCell(COL.GUARD).value || "").toString() || '-';
         document.getElementById('modal-memo').innerText = currentEditItem.memo || '-';
 
         document.getElementById('default-info-area').style.display = 'block';
         document.getElementById('photo-editor-area').style.display = 'none';
         clearCanvas();
-
         document.getElementById('status-overlay').style.display = 'flex';
     }
 
@@ -423,77 +367,38 @@
             if(newStatus === '불량' || newStatus === '고장') {
                 memo = prompt(`[${newStatus}] 상태를 선택하셨습니다.\n간단한 사유(메모)를 입력해 주세요:`, currentEditItem.memo || "");
                 if(memo === null) return; 
-            } else {
-                memo = ""; 
             }
-
-            currentEditItem.status = newStatus;
-            currentEditItem.memo = memo;
-
+            currentEditItem.status = newStatus; currentEditItem.memo = memo;
             const rowBtn = document.querySelector(`#row-${currentEditItem.num} .badge-status`);
             if(rowBtn) { 
                 let statusClass = 'status-none'; 
-                if(newStatus === '양호') statusClass = 'status-good'; 
-                else if(newStatus === '불량') statusClass = 'status-warn'; 
-                else if(newStatus === '고장') statusClass = 'status-fail'; 
-                rowBtn.innerText = newStatus + (memo ? " 💬" : "");
-                rowBtn.className = `badge-status ${statusClass}`;
+                if(newStatus === '양호') statusClass = 'status-good'; else if(newStatus === '불량') statusClass = 'status-warn'; else if(newStatus === '고장') statusClass = 'status-fail'; 
+                rowBtn.innerText = newStatus + (memo ? " 💬" : ""); rowBtn.className = `badge-status ${statusClass}`;
             }
-            if(currentEditItem.marker) { 
-                const newIcon = createMarkerIcon(currentEditItem.shortNum, currentEditItem.mgrColor, newStatus); 
-                currentEditItem.marker.setIcon(newIcon); 
-            }
+            if(currentEditItem.marker) currentEditItem.marker.setIcon(createMarkerIcon(currentEditItem.shortNum, currentEditItem.mgrColor, newStatus)); 
             
             fetch(API_URL + '/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    room_id: currentRoomId, 
-                    id: currentEditItem.num, 
-                    status: newStatus,
-                    memo: memo,
-                    manager: currentEditItem.mgrName
-                })
-            }).catch(e => console.log("서버 전송 실패", e));
-
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ room_id: currentRoomId, id: currentEditItem.num, status: newStatus, memo: memo, manager: currentEditItem.mgrName })
+            }).catch(e => console.log(e));
             closeStatusModal(); 
         }
     }
 
     async function setAllGood() {
-        if(!confirm("현재 목록에 있는 모든 '미점검' 용수를 '양호'로 일괄 변경하시겠습니까?\n(이미 불량/고장으로 체크된 용수도 양호로 덮어씌워집니다.)")) return;
-        
-        document.getElementById('loading-msg').innerText = "일괄 양호 처리 중... (서버 전송)";
-        document.getElementById('loading').style.display = 'flex';
-        
+        if(!confirm("현재 목록에 있는 모든 '미점검' 용수를 '양호'로 일괄 변경하시겠습니까?")) return;
+        document.getElementById('loading-msg').innerText = "일괄 양호 처리 중..."; document.getElementById('loading').style.display = 'flex';
         const targets = loadedRows.filter(item => document.getElementById(`row-${item.num}`) && item.status !== '양호');
-        
         for(let item of targets) {
-            item.status = '양호';
-            item.memo = '';
-            
+            item.status = '양호'; item.memo = '';
             const rowBtn = document.querySelector(`#row-${item.num} .badge-status`);
-            if(rowBtn) {
-                rowBtn.innerText = '양호';
-                rowBtn.className = 'badge-status status-good';
-            }
-            if(item.marker) {
-                item.marker.setIcon(createMarkerIcon(item.shortNum, item.mgrColor, '양호'));
-            }
-            
+            if(rowBtn) { rowBtn.innerText = '양호'; rowBtn.className = 'badge-status status-good'; }
+            if(item.marker) item.marker.setIcon(createMarkerIcon(item.shortNum, item.mgrColor, '양호'));
             await fetch(API_URL + '/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    room_id: currentRoomId,
-                    id: item.num,
-                    status: '양호',
-                    memo: '',
-                    manager: item.mgrName
-                })
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ room_id: currentRoomId, id: item.num, status: '양호', memo: '', manager: item.mgrName })
             }).catch(e => console.log(e));
         }
-        
         document.getElementById('loading').style.display = 'none';
         alert(`총 ${targets.length}건이 일괄 양호 처리되었습니다!`);
     }
@@ -502,7 +407,7 @@
     function triggerCamera() { cameraInput.click(); }
     cameraInput.addEventListener('change', function(e) {
         if (e.target.files && e.target.files[0]) {
-            document.getElementById('loading-msg').innerText = "사진 띄우는 중..."; document.getElementById('loading').style.display = 'flex';
+            document.getElementById('loading-msg').innerText = "사진 최적화 중..."; document.getElementById('loading').style.display = 'flex';
             const reader = new FileReader();
             reader.onload = function(event) {
                 originalImage = new Image();
@@ -519,24 +424,34 @@
     });
 
     function drawBaseImageWithOverlay() {
-        const maxWidth = 800; const scale = maxWidth / originalImage.width; canvas.width = maxWidth; canvas.height = originalImage.height * scale;
+        // ✨ 이메일 전송을 위해 가로 해상도를 600픽셀로 줄여서 강력 압축!
+        const maxWidth = 600; const scale = maxWidth / originalImage.width; canvas.width = maxWidth; canvas.height = originalImage.height * scale;
         ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
-        const overlayHeight = 50; ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; ctx.fillRect(0, canvas.height - overlayHeight, canvas.width, overlayHeight);
-        ctx.fillStyle = 'white'; ctx.font = 'bold 24px "Malgun Gothic", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        const infoText = `[${currentEditItem.shortNum}번 용수] 담당자: ${currentEditItem.mgrName}`;
-        ctx.fillText(infoText, canvas.width / 2, canvas.height - (overlayHeight / 2));
+        const overlayHeight = 40; ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; ctx.fillRect(0, canvas.height - overlayHeight, canvas.width, overlayHeight);
+        ctx.fillStyle = 'white'; ctx.font = 'bold 20px "Malgun Gothic", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(`[${currentEditItem.shortNum}번 용수] 담당: ${currentEditItem.mgrName}`, canvas.width / 2, canvas.height - (overlayHeight / 2));
     }
 
     canvas.addEventListener('click', function(e) {
         ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height); drawBaseImageWithOverlay(); 
         const rect = canvas.getBoundingClientRect(); const x = (e.clientX - rect.left) * (canvas.width / rect.width); const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-        ctx.beginPath(); ctx.arc(x, y, 40, 0, 2 * Math.PI); ctx.lineWidth = 5; ctx.strokeStyle = '#f1c40f'; ctx.stroke(); ctx.fillStyle = 'rgba(241, 196, 15, 0.3)'; ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, 30, 0, 2 * Math.PI); ctx.lineWidth = 4; ctx.strokeStyle = '#f1c40f'; ctx.stroke(); ctx.fillStyle = 'rgba(241, 196, 15, 0.3)'; ctx.fill();
     });
 
+    // ✨ 사진 저장 시: 폰에 다운로드 + 메일 전송을 위해 변수(photoBase64)에 압축 보관!
     function saveEditedPhoto() {
         if (!currentEditItem) return;
         const fileName = `${currentEditItem.shortNum}번용수-${currentEditItem.mgrName}.jpg`;
-        const link = document.createElement('a'); link.download = fileName; link.href = canvas.toDataURL('image/jpeg', 0.9); link.click();
+        // 품질 0.6으로 낮추어 용량을 50kb~100kb 수준으로 초압축
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
+        
+        // 1. 메모리에 보관 (나중에 메일 쏠 때 한꺼번에 보냄)
+        currentEditItem.photoBase64 = compressedBase64;
+        
+        // 2. 스마트폰 갤러리에 저장
+        const link = document.createElement('a'); link.download = fileName; link.href = compressedBase64; link.click();
+        
+        alert("사진이 기기에 저장되었고, 나중에 이메일 발송 시 함께 첨부됩니다!");
         closeStatusModal(); 
     }
 
@@ -544,13 +459,13 @@
     function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); originalImage = null; }
 
     function resetWork() { 
-        if(!confirm("초기화 하시겠습니까? (서버 데이터는 유지됩니다)")) return; 
+        if(!confirm("초기화 하시겠습니까?")) return; 
         if(syncInterval) clearInterval(syncInterval); document.getElementById('sync-indicator').style.display = 'none';
         workbook = null; worksheet = null; loadedRows = []; currentEditItem = null; markers.forEach(m => map.removeLayer(m)); markers = []; document.getElementById('listBody').innerHTML = '<tr><td colspan="9" style="padding:40px; color:#aaa; text-align:center;">엑셀 파일을 로드해주세요.</td></tr>'; document.getElementById('file-status').innerHTML = '파일을 터치하거나<br>드래그하세요'; document.getElementById('count-badge').innerText = '0건'; document.getElementById('excelFile').value = ''; map.setView([35.32, 126.98], 11); 
     }
 
     async function exportExcel() {
-        if(loadedRows.length === 0) return alert("내보낼 데이터가 없습니다. 파일을 먼저 로드하세요.");
+        if(loadedRows.length === 0) return alert("내보낼 데이터가 없습니다.");
         document.getElementById('loading-msg').innerText = "엑셀 생성 중..."; document.getElementById('loading').style.display = 'flex';
         try {
             const newWb = new ExcelJS.Workbook(); const newWs = newWb.addWorksheet('점검결과');
@@ -566,8 +481,71 @@
                 }
             });
             newWs.columns = [{ width: 6 }, { width: 15 }, { width: 10 }, { width: 25 }, { width: 10 }, { width: 25 }, { width: 25 }, { width: 30 }, { width: 10 }, { width: 10 }, { width: 10 }];
-            const buffer = await newWb.xlsx.writeBuffer(); const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); const today = new Date().toISOString().slice(2,10).replace(/-/g,''); link.download = `소방용수_실시간저장본_${today}.xlsx`; link.click(); alert("현장 데이터가 반영된 엑셀 파일이 다운로드되었습니다.");
-        } catch(err) { alert("엑셀 생성 중 오류: " + err.message); } finally { document.getElementById('loading').style.display = 'none'; document.getElementById('loading-msg').innerText = "처리 중..."; }
+            const buffer = await newWb.xlsx.writeBuffer(); const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); const today = new Date().toISOString().slice(2,10).replace(/-/g,''); link.download = `소방용수_실시간저장본_${today}.xlsx`; link.click(); 
+        } catch(err) { alert("엑셀 생성 오류: " + err.message); } finally { document.getElementById('loading').style.display = 'none'; }
+    }
+
+    // ✨✨✨ 대망의 원터치 공직자메일 자동 발송 기능 ✨✨✨
+    async function sendReportEmail() {
+        if(loadedRows.length === 0) return alert("데이터가 없습니다. 엑셀 파일을 먼저 로드하세요.");
+        
+        // 1. 공직자 메일 주소 입력 받기 (한 번 입력하면 브라우저가 기억함)
+        let savedEmail = localStorage.getItem("myKoreaEmail") || "";
+        let targetEmail = prompt("보고서를 받을 공직자 메일 주소(또는 개인 메일)를 입력하세요:", savedEmail);
+        if(!targetEmail) return;
+        localStorage.setItem("myKoreaEmail", targetEmail);
+
+        document.getElementById('loading-msg').innerText = "엑셀 및 사진 압축 발송 중... (최대 1분 소요)"; 
+        document.getElementById('loading').style.display = 'flex';
+        
+        try {
+            // 2. 백그라운드에서 엑셀 파일 생성
+            const newWb = new ExcelJS.Workbook(); const newWs = newWb.addWorksheet('점검결과');
+            newWs.addRow(['연번', '번호', '점검상태', '특이사항', '담당자', '도로명', '지번', '상세위치']); 
+            newWs.getRow(1).font = { bold: true };
+            let count = 1;
+            loadedRows.forEach(item => {
+                const r = item.row; const mgr = (r.getCell(COL.MGR).value || "").toString().trim();
+                newWs.addRow([count++, (r.getCell(COL.NUM).value || "").toString(), item.status, item.memo || "", mgr, (r.getCell(COL.ROAD).value || "").toString(), (r.getCell(COL.JIBUN).value || "").toString(), (r.getCell(COL.DETAIL).value || "").toString()]);
+            });
+            const buffer = await newWb.xlsx.writeBuffer();
+            
+            // 버퍼를 Base64 문자열로 변환 (메일 첨부용)
+            const excelBase64 = btoa(new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+
+            // 3. 앱 메모리에 보관된 모든 '압축 사진' 모으기
+            let attachedPhotos = [];
+            loadedRows.forEach(item => {
+                if(item.photoBase64) {
+                    attachedPhotos.push({
+                        filename: `${item.shortNum}번용수_${item.mgrName}.jpg`,
+                        data: item.photoBase64
+                    });
+                }
+            });
+
+            // 4. 파이썬 서버로 "전부 포장해서 메일 쏴줘!" 라고 지시
+            const res = await fetch(API_URL + '/send_email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    target_email: targetEmail,
+                    excel_b64: excelBase64,
+                    photos: attachedPhotos
+                })
+            });
+            
+            const result = await res.json();
+            if(result.result === 'success') {
+                alert(`성공! [${targetEmail}]로 엑셀 파일과 사진(${attachedPhotos.length}장)이 전송되었습니다!`);
+            } else {
+                alert("전송 실패: " + result.message);
+            }
+        } catch(err) { 
+            alert("전송 중 오류 발생: " + err.message); 
+        } finally { 
+            document.getElementById('loading').style.display = 'none'; 
+        }
     }
 
     let gpsWatchId = null; let userMarker = null; 
@@ -584,17 +562,6 @@
             },
             (error) => { alert("GPS 위치를 가져올 수 없습니다."); toggleGPS(); }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
         );
-    }
-
-    function initResizableColumns() {
-        const table = document.querySelector('.info-table'); if(!table) return; const cols = table.querySelectorAll('th'); table.querySelectorAll('.resizer').forEach(e => e.remove()); table.classList.remove('resizing-active');
-        [].forEach.call(cols, function (col) {
-            const resizer = document.createElement('div'); resizer.classList.add('resizer'); col.appendChild(resizer); let x = 0, w = 0, tableStartWidth = 0;
-            const mouseDownHandler = function (e) { x = e.clientX; w = col.offsetWidth; tableStartWidth = table.offsetWidth; if(!table.classList.contains('resizing-active')) { table.classList.add('resizing-active'); cols.forEach(c => { c.style.width = `${c.offsetWidth}px`; }); table.style.width = `${table.offsetWidth}px`; } document.addEventListener('mousemove', mouseMoveHandler); document.addEventListener('mouseup', mouseUpHandler); resizer.classList.add('resizing'); document.body.style.userSelect = 'none'; };
-            const mouseMoveHandler = function (e) { const dx = e.clientX - x; col.style.width = `${w + dx}px`; table.style.width = `${tableStartWidth + dx}px`; };
-            const mouseUpHandler = function () { resizer.classList.remove('resizing'); document.removeEventListener('mousemove', mouseMoveHandler); document.removeEventListener('mouseup', mouseUpHandler); document.body.style.userSelect = ''; };
-            resizer.addEventListener('mousedown', mouseDownHandler); resizer.addEventListener('touchstart', (e) => mouseDownHandler(e.touches[0]));
-        });
     }
 </script>
 </body>
