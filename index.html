@@ -3,33 +3,47 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🚒 소방용수 통합관제 v82 (최종)</title>
+<title>🚒 소방용수 통합관제 v84 (UI최적화)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 <style>
     * { box-sizing: border-box; }
     body { margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; width: 100vw; height: 100vh; height: 100dvh; position: fixed; top: 0; left: 0; display: flex; flex-direction: column; overflow: hidden; background-color: #f4f6f9; }
-    #header { height:40px; background:#2c3e50; color:white; display:flex; align-items:center; justify-content:space-between; padding:0 15px; border-bottom:3px solid #ff9f43; flex-shrink: 0; z-index: 5000; position: relative; }
-    @keyframes blink { 0% { opacity:1; } 50% { opacity:0.3; } 100% { opacity:1; } }
-    .sync-badge { font-size:0.7rem; background:#27ae60; padding:3px 8px; border-radius:12px; font-weight:bold; animation: blink 2s infinite; box-shadow: 0 0 5px #27ae60; display:none; }
+    
+    /* ✨ 헤더 디자인 변경 (스크롤 파일명 & 초록 깜빡이) */
+    #header { height:40px; background:#2c3e50; color:white; display:flex; align-items:center; justify-content:space-between; padding:0 10px; border-bottom:3px solid #ff9f43; flex-shrink: 0; z-index: 5000; position: relative; }
+    .header-title { font-size:1.05rem; white-space:nowrap; margin:0; }
+    .header-marquee { flex:1; margin:0 15px; overflow:hidden; display:none; align-items:center; }
+    @keyframes blink { 0% { opacity:1; } 50% { opacity:0.2; } 100% { opacity:1; } }
+    .sync-circle { width:12px; height:12px; border-radius:50%; background-color:#2ecc71; animation: blink 1.5s infinite; box-shadow: 0 0 8px #2ecc71; display:none; flex-shrink: 0; margin-right:5px;}
+    
     #container { display:flex; flex:1; height:calc(100dvh - 40px); position:relative; width: 100%; overflow: hidden; }
+    
+    /* 데스크탑 기본 패널 */
     #left-panel { width:240px; background:white; border-right:1px solid #ccc; display:flex; flex-direction:column; padding:10px; z-index:1000; flex-shrink: 0; gap: 8px;}
-    #drop-zone { border: 2px dashed #bdc3c7; border-radius: 6px; background: #fafafa; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #7f8c8d; cursor: pointer; transition: all 0.3s ease; padding: 15px 5px; min-height: 80px; }
-    #drop-zone .icon { font-size: 1.5rem; margin-bottom: 5px; }
+    #drop-zone { border: 2px dashed #bdc3c7; border-radius: 6px; background: #fafafa; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #7f8c8d; cursor: pointer; transition: all 0.3s ease; padding: 15px 5px; min-height: 80px; filter: grayscale(100%); opacity: 0.7;}
+    #drop-zone.loaded { filter: none; opacity: 1; border-color: #2ecc71; background: #eafaf1; }
+    #drop-zone .icon { font-size: 1.8rem; margin-bottom: 5px; }
     #file-status { font-size: 0.85rem; font-weight: bold; line-height: 1.3; word-break: break-all;}
+    
+    .action-btns { display: flex; flex-direction: column; gap: 5px; }
+    .btn-blue { width:100%; padding:8px; background:#2980b9; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
+    .btn-gray { width:100%; padding:8px; background:#95a5a6; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
+    .btn-green { width:100%; padding:8px; background:#27ae60; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
+    .btn-purple { width:100%; padding:8px; background:#8e44ad; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
+
     #map-wrapper { flex:1; position: relative; z-index: 1; min-height: 250px; }
     #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+    
     #right-panel { width:45%; min-width:350px; background:white; border-left:1px solid #ccc; display:flex; flex-direction:column; z-index:1000; flex-shrink: 0; position: relative; overflow: hidden; }
+    
     .overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:3000; display:none; justify-content:center; align-items:center; }
     .modal { background:white; width:95%; max-width:380px; padding:20px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5); border-top:5px solid #2980b9; max-height: 90vh; overflow-y: auto; }
     #status-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; background: #ffffff; z-index: 2000; display: none; flex-direction: column; padding: 10px 15px; overflow-y: auto; box-sizing: border-box; }
     #overlay-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:250px; overflow-y:auto; margin:15px 0; border:1px solid #eee; padding:10px; background:#f9f9f9;}
     .mgr-label { cursor:pointer; display:flex; align-items:center; font-size:0.9rem; padding:6px; border-radius:4px; background:white; border:1px solid #ddd;}
-    .btn-blue { width:100%; padding:8px; background:#2980b9; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
-    .btn-gray { width:100%; padding:8px; background:#95a5a6; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
-    .btn-green { width:100%; padding:8px; background:#27ae60; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem;}
-    .btn-purple { width:100%; padding:10px; background:#8e44ad; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:0.9rem; margin-top:5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);}
+    
     #modal-shortNum { transition: background 0.3s ease, color 0.3s ease; border-radius: 5px; }
     .modal-info-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left; margin-bottom: 8px; line-height: 1.2; }
     .modal-info-table th { background: #f1f2f6; padding: 4px 6px; border: 1px solid #ddd; color: #333; width: 25%; white-space: nowrap; }
@@ -38,6 +52,7 @@
     .status-select-btn { padding: 8px 5px; border:none; border-radius:5px; color:white; font-weight:bold; cursor:pointer; font-size:0.85rem; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
     .badge-status { padding: 3px 0; border-radius: 3px; font-size: 0.7rem; font-weight: bold; color: white; cursor: pointer; border: none; width: 90%; margin: 0 auto; display: block; line-height: 1.2; box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: all 0.3s ease;}
     .status-none { background: #95a5a6; } .status-good { background: #27ae60; } .status-warn { background: #f39c12; } .status-fail { background: #e74c3c; } 
+    
     .info-table { width:100%; border-collapse:collapse; font-size:0.75rem; table-layout:fixed; }
     .info-table th { background:#34495e; color:white; padding:6px 2px; position:sticky; top:0; z-index:10; white-space:nowrap; font-size: 0.75rem; position:relative; }
     .info-table td { border-bottom:1px solid #ddd; padding: 4px 2px; text-align:center; word-break:keep-all; vertical-align:middle; line-height:1.1; overflow:hidden; text-overflow:ellipsis; transition: background 0.3s; }
@@ -46,6 +61,7 @@
     .error-row { background:#ffebee !important; color:#c0392b; }
     .circle-marker { display:flex; justify-content:center; align-items:center; border-radius:50%; font-weight:900; font-family:'Arial Black', sans-serif; box-shadow:0 3px 6px rgba(0,0,0,0.4); transition:transform 0.3s ease, background 0.3s ease, color 0.3s ease; }
     .circle-marker:hover { transform: scale(1.1); }
+    
     #gps-btn { position: absolute; bottom: 20px; right: 20px; z-index: 2000; background: white; border: 2px solid #2980b9; color: #2980b9; border-radius: 50px; padding: 10px 15px; font-weight: bold; font-size: 0.85rem; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: all 0.3s ease; }
     #gps-btn.active { background: #e74c3c; color: white; border-color: #c0392b; }
     #loading { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; display:none; justify-content:center; align-items:center; color:white; flex-direction:column; font-size:1.1rem; font-weight:bold;}
@@ -54,17 +70,24 @@
     #photo-canvas-container { width: 100%; overflow: hidden; margin-top: 10px; border: 2px solid #ddd; display: none; touch-action: none; }
     #photo-canvas { width: 100%; height: auto; display: block; cursor: crosshair; }
     
-    /* ✨ 버튼 가림 현상 완벽 해결을 위한 수술 부위 */
+    /* ✨✨✨ 대망의 모바일 UI 1단 압축 (가림 완전 제거) ✨✨✨ */
     @media (max-width: 768px) {
         #container { flex-direction: column; overflow: hidden; height: calc(100dvh - 40px); }
-        #left-panel { flex-direction: row; width: 100%; height: auto; padding: 8px; border-bottom: 2px solid #2980b9; gap: 8px; z-index: 100; overflow-x: auto; flex-wrap: nowrap; }
-        #drop-zone { flex: 0 0 auto; width: 100px; padding: 5px; min-height: 50px; }
-        #drop-zone .icon { font-size: 1.2rem; margin: 0; }
-        #file-status { font-size: 0.75rem; text-align: left; }
-        .action-btns { display: flex; flex-direction: row; flex: 1; gap: 5px; min-width: 250px; }
-        .action-btns button { flex: 1; padding: 10px 5px; font-size: 0.75rem; margin: 0; height: 100%; }
+        
+        /* 1. 상단 컨트롤 패널을 얇은 45px 1단 가로줄로 완벽 고정 */
+        #left-panel { flex-direction: row; width: 100%; height: 45px; padding: 4px 8px; border-right: none; border-bottom: 2px solid #2980b9; gap: 8px; align-items: center; z-index: 100; overflow: hidden; }
+        
+        /* 2. 폴더 첨부 버튼: 네모 반듯한 아이콘 하나로 최소화 (글자 삭제) */
+        #drop-zone { flex: 0 0 35px; width: 35px; height: 35px; min-height: 35px; padding: 0; justify-content: center; margin: 0; }
+        #drop-zone .icon { font-size: 1.4rem; margin: 0; }
+        #file-status { display: none; } /* 파일명 텍스트 숨김 (헤더로 이동) */
+        
+        /* 3. 액션 버튼 3개: 2단 쌓임 방지, 가로로 얇게 쫙 펴기 */
+        .action-btns { display: flex; flex-direction: row; flex: 1; gap: 4px; height: 35px; align-items: center; }
+        .action-btns button { flex: 1; height: 100%; padding: 0; font-size: 0.75rem; margin: 0; white-space: nowrap; border-radius: 4px; }
+        
         #map-wrapper { flex: 1; min-height: 40vh; width: 100%; z-index: 1; }
-        #right-panel { height: 35vh; width: 100%; border-top: 2px solid #34495e; position: relative; overflow: hidden; z-index: 10; }
+        #right-panel { height: 40vh; width: 100%; border-left: none; border-top: 2px solid #34495e; position: relative; overflow: hidden; z-index: 10; }
     }
 </style>
 </head>
@@ -75,7 +98,7 @@
 
 <div id="manager-overlay" class="overlay">
     <div class="modal">
-        <h3 style="margin-top:0; color:#2c3e50;">👤 담당자 선택 (최대 3명)</h3>
+        <h3 style="margin-top:0; color:#2c3e50;">👤 담당자 선택</h3>
         <div id="overlay-list"></div>
         <div style="display:flex; flex-direction:column; gap:5px;">
             <button class="btn-blue" onclick="confirmManager()">✅ 확인</button>
@@ -88,21 +111,24 @@
 </div>
 
 <div id="header">
-    <h3 style="margin:0; font-size:1.1rem;">🚒 소방용수 통합관제 <span style="font-size:0.7rem; font-weight:normal; color:#bdc3c7;">v82</span></h3>
-    <span class="sync-badge" id="sync-indicator">📡 실시간 연동 중</span>
+    <h3 class="header-title">🚒 소방용수 <span style="font-size:0.7rem; font-weight:normal; color:#bdc3c7;">v84</span></h3>
+    <div class="header-marquee" id="header-filename-area">
+        <marquee scrollamount="4" style="font-size:0.85rem; color:#f1c40f; font-weight:bold;" id="header-filename"></marquee>
+    </div>
+    <div class="sync-circle" id="sync-indicator"></div>
 </div>
 
 <div id="container">
     <div id="left-panel">
         <label id="drop-zone" for="excelFile">
             <div class="icon">📂</div>
-            <div id="file-status">파일을 터치하거나<br>드래그하세요</div>
+            <div id="file-status">엑셀 로드</div>
             <input type="file" id="excelFile" accept=".xlsx" style="display:none;" />
         </label>
         <div class="action-btns">
-            <button class="btn-purple" onclick="sendReportEmail()">📧 공직자메일 원터치 보고</button>
-            <div style="display:flex; gap:3px;">
-                <button class="btn-green" style="flex:1;" onclick="exportExcel()">💾 엑셀 저장</button>
+            <button class="btn-purple" onclick="sendReportEmail()">📧 메일보고</button>
+            <div>
+                <button class="btn-green" style="flex:1;" onclick="exportExcel()">💾 저장</button>
                 <button class="btn-gray" style="flex:1;" onclick="resetWork()">🔄 초기화</button>
             </div>
         </div>
@@ -165,6 +191,7 @@
         </div>
     </div>
 </div>
+
 <script>
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
         window.addEventListener(evt, e => e.preventDefault(), { capture: true });
@@ -222,7 +249,6 @@
             
             worksheet.eachRow((row, rowNumber) => { 
                 if(rowNumber >= 3) {
-                    // ✨ photoBase64 변수를 추가하여 폰 메모리에 사진을 임시 보관
                     loadedRows.push({ row: row, num: rowNumber, status: '미점검', shortNum: '', mgrColor: '#333', marker: null, mgrName: '', memo: '', photoBase64: null }); 
                 }
             });
@@ -236,7 +262,11 @@
                 });
             } catch(e) { console.log("서버 연결 실패"); }
 
-            document.getElementById('file-status').innerHTML = `<span style="color:#2980b9;">${file.name}</span>`;
+            // ✨ 파일 첨부 성공 시: 폴더 아이콘에 색을 입히고, 상단 전광판에 파일명 표시
+            dropZone.classList.add('loaded'); 
+            document.getElementById('header-filename-area').style.display = 'flex';
+            document.getElementById('header-filename').innerText = file.name;
+
             showManagerOverlay();
             startRealtimeSync();
 
@@ -246,7 +276,7 @@
 
     function startRealtimeSync() {
         if(syncInterval) clearInterval(syncInterval);
-        document.getElementById('sync-indicator').style.display = 'inline-block'; 
+        document.getElementById('sync-indicator').style.display = 'block'; 
         
         syncInterval = setInterval(async () => {
             if(loadedRows.length === 0) return;
@@ -424,7 +454,6 @@
     });
 
     function drawBaseImageWithOverlay() {
-        // ✨ 이메일 전송을 위해 가로 해상도를 600픽셀로 줄여서 강력 압축!
         const maxWidth = 600; const scale = maxWidth / originalImage.width; canvas.width = maxWidth; canvas.height = originalImage.height * scale;
         ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
         const overlayHeight = 40; ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; ctx.fillRect(0, canvas.height - overlayHeight, canvas.width, overlayHeight);
@@ -441,15 +470,10 @@
     function saveEditedPhoto() {
         if (!currentEditItem) return;
         const fileName = `${currentEditItem.shortNum}번용수-${currentEditItem.mgrName}.jpg`;
-        // 품질 0.6으로 낮추어 용량을 50kb~100kb 수준으로 초압축
         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); 
-        
-        // 1. 메모리에 보관 (나중에 메일 쏠 때 한꺼번에 보냄)
         currentEditItem.photoBase64 = compressedBase64;
         
-        // 2. 스마트폰 갤러리에 저장
         const link = document.createElement('a'); link.download = fileName; link.href = compressedBase64; link.click();
-        
         alert("사진이 기기에 저장되었고, 나중에 이메일 발송 시 함께 첨부됩니다!");
         closeStatusModal(); 
     }
@@ -457,10 +481,40 @@
     function cancelPhotoEdit() { clearCanvas(); document.getElementById('photo-editor-area').style.display = 'none'; document.getElementById('default-info-area').style.display = 'block'; cameraInput.value = ''; }
     function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); originalImage = null; }
 
-    function resetWork() { 
-        if(!confirm("초기화 하시겠습니까?")) return; 
-        if(syncInterval) clearInterval(syncInterval); document.getElementById('sync-indicator').style.display = 'none';
-        workbook = null; worksheet = null; loadedRows = []; currentEditItem = null; markers.forEach(m => map.removeLayer(m)); markers = []; document.getElementById('listBody').innerHTML = '<tr><td colspan="9" style="padding:40px; color:#aaa; text-align:center;">엑셀 파일을 로드해주세요.</td></tr>'; document.getElementById('file-status').innerHTML = '파일을 터치하거나<br>드래그하세요'; document.getElementById('count-badge').innerText = '0건'; document.getElementById('excelFile').value = ''; map.setView([35.32, 126.98], 11); 
+    // ✨✨✨ 초기화 시 서버 데이터까지 완벽 포맷하는 로직 추가 ✨✨✨
+    async function resetWork() { 
+        if(!confirm("⚠️ 경고: 초기화하시면 '서버에 저장된 현재 엑셀 파일의 작업 기록'까지 모두 삭제됩니다. 계속하시겠습니까?")) return; 
+        
+        if (loadedRows.length > 0) {
+            document.getElementById('loading-msg').innerText = "서버 데이터 완전 초기화 중..."; 
+            document.getElementById('loading').style.display = 'flex';
+            
+            // 서버에 덮어쓰기 요청을 병렬로 보내서 삭제 처리 (미점검 상태로 롤백)
+            const resetPromises = loadedRows.map(item => {
+                if(item.status !== '미점검' || item.memo !== '') {
+                    return fetch(API_URL + '/update', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ room_id: currentRoomId, id: item.num, status: '미점검', memo: '', manager: item.mgrName })
+                    }).catch(e => console.log(e));
+                }
+            });
+            await Promise.all(resetPromises);
+        }
+
+        if(syncInterval) clearInterval(syncInterval); 
+        document.getElementById('sync-indicator').style.display = 'none';
+        document.getElementById('header-filename-area').style.display = 'none';
+        document.getElementById('header-filename').innerText = '';
+        document.getElementById('drop-zone').classList.remove('loaded');
+        
+        workbook = null; worksheet = null; loadedRows = []; currentEditItem = null; currentRoomId = "default_room";
+        markers.forEach(m => map.removeLayer(m)); markers = []; 
+        document.getElementById('listBody').innerHTML = '<tr><td colspan="9" style="padding:40px; color:#aaa; text-align:center;">엑셀 파일을 로드해주세요.</td></tr>'; 
+        document.getElementById('count-badge').innerText = '0건'; 
+        document.getElementById('excelFile').value = ''; 
+        map.setView([35.32, 126.98], 11);
+        document.getElementById('loading').style.display = 'none';
+        alert("서버와 스마트폰의 모든 데이터가 완벽하게 초기화되었습니다!");
     }
 
     async function exportExcel() {
@@ -484,16 +538,15 @@
         } catch(err) { alert("엑셀 생성 오류: " + err.message); } finally { document.getElementById('loading').style.display = 'none'; }
     }
 
-    // ✨ 대망의 원터치 공직자메일 자동 발송 기능
     async function sendReportEmail() {
         if(loadedRows.length === 0) return alert("데이터가 없습니다. 엑셀 파일을 먼저 로드하세요.");
         
         let savedEmail = localStorage.getItem("myKoreaEmail") || "";
-        let targetEmail = prompt("보고서를 받을 공직자 메일 주소(또는 개인 메일)를 입력하세요:", savedEmail);
+        let targetEmail = prompt("보고서를 받을 공직자 메일 주소를 입력하세요:", savedEmail);
         if(!targetEmail) return;
         localStorage.setItem("myKoreaEmail", targetEmail);
 
-        document.getElementById('loading-msg').innerText = "엑셀 및 사진 압축 발송 중... (최대 1분 소요)"; 
+        document.getElementById('loading-msg').innerText = "보고서 압축 및 전송 중...\n(사진 갯수에 따라 최대 1~2분 소요)"; 
         document.getElementById('loading').style.display = 'flex';
         
         try {
