@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>🚒 소방용수 통합관제 v80</title>
+<title>🚒 소방용수 통합관제 v81</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
@@ -179,7 +179,7 @@
     let currentEditItem = null; 
     let syncInterval = null; 
     
-    // ✨ 핵심! 현재 업로드된 파일의 '고유 식별자(Room ID)'
+    // ✨ 용량을 지우고 오직 파일 이름만 가져와서 채팅방 아이디로 씁니다!
     let currentRoomId = "default_room"; 
 
     map = L.map('map', { zoomControl: false }).setView([35.32, 126.98], 11);
@@ -220,8 +220,8 @@
     async function handleFile(file) {
         if(!file) return;
         
-        // ✨ 채팅방 ID 생성: "파일이름_파일용량" (완벽하게 같은 파일만 같은 방으로 인식)
-        currentRoomId = file.name + "_" + file.size;
+        // ✨ 채팅방 ID 생성: 오직 "파일 이름"만 사용! 용량이 달라도 이름만 같으면 연동됨.
+        currentRoomId = file.name;
 
         document.getElementById('loading-msg').innerText = "파일 및 클라우드 데이터 읽는 중...";
         document.getElementById('loading').style.display = 'flex';
@@ -239,7 +239,6 @@
             });
             
             try {
-                // ✨ URL 끝에 시간(?t=...)을 붙여서 악성 브라우저 캐시를 무력화시킵니다.
                 const res = await fetch(API_URL + '/data?room=' + encodeURIComponent(currentRoomId) + '&t=' + new Date().getTime());
                 const serverData = await res.json();
                 loadedRows.forEach(item => {
@@ -266,7 +265,6 @@
         syncInterval = setInterval(async () => {
             if(loadedRows.length === 0) return;
             try {
-                // ✨ 브라우저 캐시 방지 코드가 들어간 3초 레이더!
                 const res = await fetch(API_URL + '/data?room=' + encodeURIComponent(currentRoomId) + '&t=' + new Date().getTime());
                 const serverData = await res.json();
                 
@@ -446,7 +444,6 @@
                 currentEditItem.marker.setIcon(newIcon); 
             }
             
-            // ✨ 상태 저장 시 Room ID 포함 발송
             fetch(API_URL + '/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
