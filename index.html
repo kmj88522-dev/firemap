@@ -63,6 +63,7 @@
         .action-btns button { padding: 5px; font-size: 0.75rem; margin: 0; }
         #map-wrapper { flex: 1; min-height: 40vh; width: 100%; z-index: 1; }
         #right-panel { height: 42vh; width: 100%; border-left: none; border-top: 2px solid #34495e; position: relative; overflow: hidden; z-index: 10; }
+        .btn-purple { position: relative; z-index: 6000 !important; }
     }
 </style>
 </head>
@@ -547,13 +548,19 @@
             document.getElementById('loading').style.display = 'none'; 
         }
     }
+let gpsWatchId = null;
+let userMarker = null;
+let userHeadingMarker = null;
+let lastHeading = 0;
 
-    let gpsWatchId = null; let userMarker = null; 
-    function toggleGPS() {
-        const btn = document.getElementById('gps-btn');
-        if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; if (userMarker) { map.removeLayer(userMarker); userMarker = null; } btn.innerText = "🎯 내 위치 표시"; btn.classList.remove('active'); return; }
-        if (!navigator.geolocation) return alert("스마트폰의 위치 서비스를 켜주세요.");
-        btn.innerText = "⏹️ 위치 표시 끄기"; btn.classList.add('active');
+function toggleGPS() {
+   ...
+}
+// 🔥 여기까지
+
+</script>
+</body>
+</html>
         gpsWatchId = navigator.geolocation.watchPosition(
             (position) => {
                 const latlng = [position.coords.latitude, position.coords.longitude];
@@ -566,3 +573,4 @@
 </script>
 </body>
 </html>
+
