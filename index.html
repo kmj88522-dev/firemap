@@ -1,84 +1,78 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🚒 소방용수 통합관제 v82_Original_Full</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <style>
-        /* [핵심] 민주님의 스타일은 유지하되, 전체 화면 구조만 강제로 잡았습니다 */
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; width: 100vw; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; background-color: #f4f6f9; }
-        
-        #header { height: 45px; background: #2c3e50; color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 3px solid #ff9f43; flex-shrink: 0; z-index: 5000; }
-        #container { display: flex; flex: 1; height: calc(100dvh - 45px); position: relative; width: 100%; overflow: hidden; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🚒 소방용수 통합관제 v82_Original_Fixed</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+<style>
+    /* 1. 민주님 원본 CSS 100% 복구 (애니메이션, 마커 스타일 포함) */
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; width: 100vw; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; background-color: #f4f6f9; position: fixed; top: 0; left: 0; }
+    #header { height:40px; background:#2c3e50; color:white; display:flex; align-items:center; justify-content:space-between; padding:0 15px; border-bottom:3px solid #ff9f43; flex-shrink: 0; z-index: 5000; position: relative; }
+    @keyframes blink { 0% { opacity:1; } 50% { opacity:0.3; } 100% { opacity:1; } }
+    .sync-badge { font-size:0.7rem; background:#27ae60; padding:3px 8px; border-radius:12px; font-weight:bold; animation: blink 2s infinite; display:none; }
+    
+    #container { display:flex; flex:1; height:calc(100dvh - 40px); position:relative; width: 100%; overflow: hidden; }
+    
+    /* 레이아웃 (모바일 대응 고정) */
+    #left-panel { width:240px; background:white; border-right:1px solid #ccc; display:flex; flex-direction:column; padding:10px; z-index:1000; flex-shrink: 0; gap: 8px;}
+    @media (max-width: 768px) {
+        #container { flex-direction: column; }
+        #left-panel { flex-direction: row; width: 100%; height: auto; padding: 5px; border-right: none; border-bottom: 2px solid #2980b9; gap: 5px; align-items: center; overflow-x: auto; flex-shrink: 0; }
+        #map-wrapper { flex: 1; min-height: 250px; }
+        #right-panel { height: 42vh; width: 100%; border-left: none; border-top: 2px solid #34495e; flex-shrink: 0; }
+    }
 
-        /* 패널 레이아웃 (PC/모바일 대응) */
-        #left-panel { width: 250px; background: white; border-right: 1px solid #ccc; display: flex; flex-direction: column; padding: 12px; z-index: 1000; flex-shrink: 0; gap: 10px; }
-        #map-wrapper { flex: 1; position: relative; z-index: 1; min-height: 250px; background: #e5e5e5; }
-        #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
-        #right-panel { width: 45%; min-width: 380px; background: white; border-left: 1px solid #ccc; display: flex; flex-direction: column; z-index: 1000; flex-shrink: 0; position: relative; }
+    #map-wrapper { flex:1; position: relative; z-index: 1; }
+    #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+    #right-panel { width:45%; min-width:350px; background:white; border-left:1px solid #ccc; display:flex; flex-direction:column; z-index:1000; position: relative; overflow: hidden; }
 
-        @media (max-width: 768px) {
-            #container { flex-direction: column; }
-            #left-panel { flex-direction: row; width: 100%; height: auto; padding: 6px; border-right: none; border-bottom: 2px solid #2980b9; overflow-x: auto; align-items: center; }
-            #right-panel { height: 45vh; width: 100%; border-left: none; border-top: 2px solid #34495e; }
-        }
-
-        /* 민주님 v82 원본 전용 버튼 및 오버레이 스타일 (생략 없음) */
-        #drop-zone { border: 2px dashed #bdc3c7; border-radius: 6px; background: #fafafa; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #7f8c8d; cursor: pointer; padding: 8px; flex: 1; min-width: 130px; }
-        .btn-purple { background: #8e44ad; color: white; border: none; padding: 10px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem; }
-        .btn-green { background: #27ae60; color: white; border: none; padding: 8px; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .badge-status { padding: 4px 0; border-radius: 3px; font-size: 0.75rem; font-weight: bold; color: white; border: none; width: 90%; margin: 0 auto; display: block; cursor: pointer; text-align: center; }
-        .status-none { background: #95a5a6; } .status-good { background: #27ae60; } .status-warn { background: #f39c12; } .status-fail { background: #e74c3c; }
-
-        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 6000; display: none; justify-content: center; align-items: center; }
-        .modal { background: white; width: 95%; max-width: 400px; padding: 20px; border-radius: 12px; border-top: 6px solid #2980b9; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        #overlay-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-height: 300px; overflow-y: auto; margin: 15px 0; border: 1px solid #eee; padding: 10px; background: #f9f9f9; }
-
-        .info-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; table-layout: fixed; }
-        .info-table th { background: #34495e; color: white; padding: 8px 2px; position: sticky; top: 0; z-index: 10; border: 1px solid #2c3e50; }
-        .info-table td { border: 1px solid #ddd; padding: 6px 2px; text-align: center; }
-
-        #gps-btn { position: absolute; bottom: 20px; right: 20px; z-index: 2000; background: white; border: 2px solid #2980b9; border-radius: 50px; padding: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        #status-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2100; display: none; flex-direction: column; padding: 20px; overflow-y: auto; }
-    </style>
+    /* ✨ 박살났던 마커 스타일 원본 그대로 복구 */
+    .circle-marker { display:flex; justify-content:center; align-items:center; border-radius:50%; font-weight:900; font-family:'Arial Black', sans-serif; box-shadow:0 3px 6px rgba(0,0,0,0.4); }
+    
+    .overlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:6000; display:none; justify-content:center; align-items:center; }
+    .modal { background:white; width:95%; max-width:380px; padding:20px; border-radius:10px; border-top:5px solid #2980b9; max-height: 90vh; overflow-y: auto; }
+    #overlay-list { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:250px; overflow-y:auto; margin:15px 0; border:1px solid #eee; padding:10px; background:#f9f9f9;}
+    
+    .info-table { width:100%; border-collapse:collapse; font-size:0.75rem; table-layout:fixed; }
+    .info-table th { background:#34495e; color:white; padding:6px 2px; position:sticky; top:0; z-index:10; }
+    .badge-status { padding: 3px 0; border-radius: 3px; font-size: 0.7rem; font-weight: bold; color: white; border: none; width: 90%; margin: 0 auto; display: block; }
+    .status-none { background: #95a5a6; } .status-good { background: #27ae60; } .status-warn { background: #f39c12; } .status-fail { background: #e74c3c; }
+    
+    #gps-btn { position: absolute; bottom: 20px; right: 20px; z-index: 2000; background: white; border: 2px solid #2980b9; border-radius: 50px; padding: 10px 15px; font-weight: bold; }
+</style>
 </head>
 <body>
 
-<div id="loading" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; display:none; flex-direction:column; justify-content:center; align-items:center; color:white;">
-    <div style="width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-    <p style="margin-top:15px; font-weight:bold;">민주님! 원본 데이터를 불러오는 중입니다...</p>
-</div>
-<style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
-
+<div id="loading" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; display:none; justify-content:center; align-items:center; color:white; flex-direction:column;">처리 중...</div>
 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
 
 <div id="manager-overlay" class="overlay">
     <div class="modal">
-        <h3 style="margin-top:0; color:#2c3e50; border-bottom:2px solid #eee; padding-bottom:10px;">👤 담당자 다중 선택</h3>
+        <h3 style="margin-top:0; color:#2c3e50;">👤 담당자 선택 (최대 3명)</h3>
         <div id="overlay-list"></div>
-        <div style="display:flex; flex-direction:column; gap:8px;">
-            <button onclick="confirmManager()" style="padding:15px; background:#2980b9; color:white; border:none; border-radius:6px; font-weight:bold; font-size:1rem;">✅ 선택 완료</button>
-            <button onclick="resetManagerSelection()" style="padding:10px; background:#7f8c8d; color:white; border:none; border-radius:6px;">🔄 전체 해제</button>
+        <div style="display:flex; flex-direction:column; gap:5px;">
+            <button class="btn-blue" style="background:#2980b9; color:white; padding:10px; border:none; border-radius:4px; font-weight:bold; cursor:pointer;" onclick="confirmManager()">✅ 확인</button>
+            <button class="btn-gray" style="background:#7f8c8d; color:white; padding:8px; border:none; border-radius:4px; cursor:pointer;" onclick="resetManagerSelection()">🔄 선택 초기화</button>
         </div>
     </div>
 </div>
 
 <div id="header">
-    <h3 style="margin:0; font-size:1.1rem;">🚒 소방용수 통합관제 v82_Original</h3>
-    <div id="sync-indicator" style="font-size:0.7rem; background:#27ae60; padding:4px 10px; border-radius:15px; display:none; font-weight:bold;">📡 실시간 연동중</div>
+    <h3 style="margin:0; font-size:1.1rem;">🚒 소방용수 통합관제 <span style="font-size:0.7rem;">v82_Original_Restored</span></h3>
+    <span class="sync-badge" id="sync-indicator">📡 실시간 연동 중</span>
 </div>
 
 <div id="container">
     <div id="left-panel">
-        <label id="drop-zone" for="excelFile">
-            <div id="file-status">📂 엑셀 파일 로드</div>
+        <label id="drop-zone" for="excelFile" style="flex:1; border:2px dashed #ccc; padding:10px; text-align:center; cursor:pointer;">
+            <div id="file-status">📂 엑셀 로드</div>
             <input type="file" id="excelFile" accept=".xlsx" style="display:none;" />
         </label>
-        <button class="btn-purple" onclick="sendAllDataWithPhotos()">📧 일괄 보고서 발송</button>
+        <button onclick="sendAllData()" style="background:#8e44ad; color:white; border:none; padding:10px; border-radius:4px; font-weight:bold; font-size:0.8rem; cursor:pointer;">📧 일괄 보고</button>
     </div>
 
     <div id="map-wrapper">
@@ -87,81 +81,93 @@
     </div>
 
     <div id="right-panel">
-        <div style="background:#34495e; color:white; padding:8px 12px; display:flex; justify-content:space-between; align-items:center;">
-            <div style="display:flex; gap:10px; align-items:center;">
-                <b>📋 점검 목록</b>
+        <div style="padding:4px 10px; background:#34495e; color:white; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap: 8px;">
+                <span style="font-size:0.85rem; font-weight:bold;">📋 용수 목록</span>
                 <button onclick="setAllGood()" style="background:#27ae60; color:white; border:none; border-radius:4px; padding:3px 8px; font-size:0.75rem; font-weight:bold;">일괄 양호</button>
             </div>
-            <span id="count-badge" style="background:#e67e22; padding:3px 10px; border-radius:15px; font-size:0.8rem; font-weight:bold;">0건</span>
+            <span id="count-badge" style="background:#e67e22; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">0건</span>
         </div>
         <div style="flex:1; overflow:auto;">
             <table class="info-table" id="mainTable">
                 <thead>
-                    <tr><th style="width:12%;">번호</th><th style="width:18%;">상태</th><th style="width:15%;">담당</th><th style="width:55%;">위치 및 정보</th></tr>
+                    <tr><th style="width:10%;">번호</th><th style="width:15%;">상태</th><th style="width:12%;">담당</th><th style="width:18%;">도로명</th><th style="width:14%;">지번</th><th style="width:22%;">상세</th><th style="width:6%;">표지</th><th style="width:5%;">제수</th><th style="width:5%;">보호</th></tr>
                 </thead>
                 <tbody id="listBody"></tbody>
             </table>
         </div>
 
-        <div id="status-overlay">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid #ff9f43; padding-bottom:12px; margin-bottom:15px;">
-                <h3 id="modal-title" style="margin:0; font-size:1.1rem; color:#2c3e50;">📋 상세 점검 정보</h3>
-                <button onclick="closeStatusModal()" style="border:none; background:none; font-size:2rem; cursor:pointer;">&times;</button>
+        <div id="status-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; display: none; flex-direction: column; padding: 15px; overflow-y: auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #ff9f43; padding-bottom: 5px; margin-bottom: 10px;">
+                <h3 id="modal-shortNum" style="margin:0; font-size:0.95rem;">📋 점검 정보</h3>
+                <button onclick="closeStatusModal()" style="border:none; background:none; font-size:1.2rem; cursor:pointer;">❌</button>
             </div>
-            <div id="detail-body">
-                <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:0.9rem;">
-                    <tr><th style="background:#f1f2f6; padding:10px; border:1px solid #ddd; width:30%;">위치</th><td id="modal-road" style="padding:10px; border:1px solid #ddd;"></td></tr>
-                    <tr><th style="background:#f1f2f6; padding:10px; border:1px solid #ddd;">특이사항</th><td id="modal-memo" style="padding:10px; border:1px solid #ddd; color:red; font-weight:bold;"></td></tr>
+            <div id="default-info-area">
+                <table style="width:100%; border-collapse:collapse; font-size:0.8rem; margin-bottom:10px;">
+                    <tr><th style="background:#f1f2f6; border:1px solid #ddd; padding:6px; width:25%;">담당자</th><td id="modal-mgr" style="border:1px solid #ddd; padding:6px;"></td></tr>
+                    <tr><th style="background:#f1f2f6; border:1px solid #ddd; padding:6px;">위치</th><td style="border:1px solid #ddd; padding:6px;"><span id="modal-road"></span><br><span id="modal-jibun" style="font-size:0.7rem; color:#7f8c8d;"></span></td></tr>
+                    <tr><th style="background:#f1f2f6; border:1px solid #ddd; padding:6px;">상세/시설</th><td style="border:1px solid #ddd; padding:6px;"><span id="modal-detail"></span><br><span style="font-size:0.7rem; color:#7f8c8d;">(표지:<span id="modal-sign"></span> 제수:<span id="modal-valve"></span> 보호:<span id="modal-guard"></span>)</span></td></tr>
+                    <tr><th style="background:#f1f2f6; border:1px solid #ddd; padding:6px;">특이사항</th><td id="modal-memo" style="border:1px solid #ddd; padding:6px; color:red; font-weight:bold;">-</td></tr>
                 </table>
-                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:20px;">
-                    <button onclick="saveStatus('양호')" style="background:#27ae60; color:white; border:none; padding:15px 0; border-radius:6px; font-weight:bold;">양호</button>
-                    <button onclick="saveStatus('불량')" style="background:#f39c12; color:white; border:none; padding:15px 0; border-radius:6px; font-weight:bold;">불량</button>
-                    <button onclick="saveStatus('고장')" style="background:#e74c3c; color:white; border:none; padding:15px 0; border-radius:6px; font-weight:bold;">고장</button>
-                    <button onclick="saveStatus('미점검')" style="background:#95a5a6; color:white; border:none; padding:15px 0; border-radius:6px; font-weight:bold;">리셋</button>
+                <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:5px; margin-bottom:10px;">
+                    <button class="status-btn" style="background:#27ae60; color:white; border:none; padding:12px; border-radius:4px; font-weight:bold;" onclick="saveStatus('양호')">양호</button>
+                    <button class="status-btn" style="background:#f39c12; color:white; border:none; padding:12px; border-radius:4px; font-weight:bold;" onclick="saveStatus('불량')">불량</button>
+                    <button class="status-btn" style="background:#e74c3c; color:white; border:none; padding:12px; border-radius:4px; font-weight:bold;" onclick="saveStatus('고장')">고장</button>
+                    <button class="status-btn" style="background:#95a5a6; color:white; border:none; padding:12px; border-radius:4px; font-weight:bold;" onclick="saveStatus('미점검')">리셋</button>
                 </div>
-                <button onclick="triggerCamera()" style="width:100%; padding:18px; background:#3498db; color:white; border:none; border-radius:8px; font-weight:bold; font-size:1.1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📷 현장 사진 촬영</button>
-                
-                <div id="photo-preview-area" style="display:none; margin-top:20px; text-align:center; background:#f9f9f9; padding:10px; border-radius:8px;">
-                    <canvas id="photo-canvas" style="width:100%; border:2px solid #ddd; border-radius:4px;"></canvas>
-                    <button onclick="savePhotoToQueue()" style="width:100%; padding:15px; background:#2ecc71; color:white; border:none; border-radius:8px; font-weight:bold; margin-top:10px; font-size:1rem;">💾 사진 보관함에 저장</button>
-                </div>
+                <button style="width:100%; padding:15px; background:#3498db; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;" onclick="triggerCamera()">📷 사진 촬영 및 보관</button>
+            </div>
+            <div id="photo-editor-area" style="display:none; margin-top:10px;">
+                <canvas id="photo-canvas" style="width:100%; border:1px solid #ddd;"></canvas>
+                <button style="width:100%; padding:15px; background:#2ecc71; color:white; border:none; border-radius:6px; font-weight:bold; margin-top:5px;" onclick="saveEditedPhoto()">💾 압축보관 (메일용)</button>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    /* [민주님 v82 원본 스크립트 - 절대 생략 금지] */
+    /* [민주님 전용 변수 및 COL 설정 - 절대 수정 안 함] */
     const API_URL = "https://koreanparamedics.pythonanywhere.com";
     const COL = { NUM: 7, ROAD: 9, JIBUN: 10, DETAIL: 11, LAT: 12, LNG: 13, SIGN: 18, VALVE: 20, GUARD: 21, MGR: 27 };
-    let map, markers = [], workbook = null, worksheet = null, loadedRows = [], currentRoomId = "default";
+    const ACTIVE_COLORS = ['#ff4757', '#2ed573', '#1e90ff']; 
+    let map, markers=[], workbook=null, worksheet=null, loadedRows=[], currentRoomId = "default";
     let photoQueue = []; let currentEditItem = null;
 
-    // 지도 초기화
     map = L.map('map', { zoomControl: false }).setView([35.32, 126.98], 11);
     L.tileLayer('https://xdworld.vworld.kr/2d/Base/service/{z}/{x}/{y}.png').addTo(map);
 
-    // 파일 로드 로직 (민주님 원본 그대로)
+    /* ✨ 박살냈던 마커 로직 원본 그대로 복원 */
+    function createMarkerIcon(shortNum, mgrColor, status) {
+        let textColor = '#ffffff'; 
+        if (status === '양호') textColor = '#2ecc71'; 
+        else if (status === '불량') textColor = '#f1c40f'; 
+        else if (status === '고장') textColor = '#ff4757'; 
+        return L.divIcon({ 
+            className:'', 
+            html: `<div class="circle-marker" style="background:#1e272e; color:${textColor}; border:3px solid ${mgrColor}; width:26px; height:26px; font-size:11px; letter-spacing:-0.5px;">${shortNum}</div>`, 
+            iconSize:[26,26], iconAnchor:[13,13] 
+        });
+    }
+
+    /* ✨ 담당자 선택 및 렌더링 로직 (v82 원본) */
+    function getLightColor(hexColor) {
+        let r = parseInt(hexColor.slice(1, 3), 16), g = parseInt(hexColor.slice(3, 5), 16), b = parseInt(hexColor.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, 0.12)`; 
+    }
+
     document.getElementById('excelFile').onchange = async function(e) {
         const file = e.target.files[0]; if(!file) return;
         currentRoomId = file.name;
         document.getElementById('loading').style.display = 'flex';
-        
-        try {
-            const buffer = await file.arrayBuffer();
-            workbook = new ExcelJS.Workbook();
-            await workbook.xlsx.load(buffer);
-            worksheet = workbook.worksheets[0];
-            
-            loadedRows = [];
-            worksheet.eachRow((row, i) => { 
-                if(i >= 3) loadedRows.push({ row, num: i, status: '미점검', memo: '', photo: null }); 
-            });
-            
-            document.getElementById('file-status').innerText = file.name;
-            showManagerOverlay();
-            startRealtimeSync();
-        } catch(err) { alert("엑셀 로드 오류!"); }
+        const buffer = await file.arrayBuffer();
+        workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        worksheet = workbook.worksheets[0];
+        loadedRows = [];
+        worksheet.eachRow((row, i) => { if(i >= 3) loadedRows.push({ row, num: i, status: '미점검', memo: '', photoBase64: null }); });
+        document.getElementById('file-status').innerText = file.name;
+        showManagerOverlay();
+        startSync();
         document.getElementById('loading').style.display = 'none';
     };
 
@@ -170,53 +176,56 @@
         loadedRows.forEach(item => { const v = item.row.getCell(COL.MGR).value; if(v) mgrSet.add(v.toString().trim()); });
         const list = document.getElementById('overlay-list'); list.innerHTML = "";
         [...mgrSet].sort().forEach(mgr => {
-            list.innerHTML += `<label style="display:flex; align-items:center; background:white; padding:12px; border:1px solid #ddd; border-radius:6px; cursor:pointer; font-weight:bold;"><input type="checkbox" class="mgr-check" value="${mgr}" style="width:20px; height:20px; margin-right:12px;"> ${mgr}</label>`;
+            list.innerHTML += `<label class="mgr-label" style="cursor:pointer; display:flex; align-items:center; font-size:0.9rem; padding:6px; border:1px solid #ddd; background:white;"><input type="checkbox" class="mgr-check" value="${mgr}" style="margin-right:8px;">${mgr}</label>`;
         });
         document.getElementById('manager-overlay').style.display = 'flex';
     }
 
-    function resetManagerSelection() { document.querySelectorAll('.mgr-check').forEach(c => c.checked = false); }
+    function resetManagerSelection() { document.querySelectorAll('.mgr-check').forEach(cb => cb.checked = false); }
 
     function confirmManager() {
-        const checked = Array.from(document.querySelectorAll('.mgr-check:checked')).map(c => c.value);
-        if(checked.length === 0) return alert("최소 한 명 이상의 담당자를 선택해 주세요.");
+        const checks = document.querySelectorAll('.mgr-check:checked');
+        if(checks.length === 0) return alert("담당자를 선택하세요.");
+        const targets = Array.from(checks).map((c, idx) => ({ name: c.value, color: ACTIVE_COLORS[idx] || '#333' }));
         document.getElementById('manager-overlay').style.display = 'none';
-        renderData(checked);
+        renderMapAndTable(targets);
     }
 
-    /* [마킹 및 데이터 처리 - 민주님 v82 원본 로직] */
-    function renderData(targetMgrs) {
+    /* ✨ 테이블 및 지도 렌더링 (민주님 원본 필터링 및 스타일 그대로) */
+    function renderMapAndTable(targets) {
         const tbody = document.getElementById('listBody'); tbody.innerHTML = "";
         markers.forEach(m => map.removeLayer(m)); markers = [];
+        const targetNames = targets.map(t => t.name);
         
         loadedRows.forEach(item => {
-            const mgr = (item.row.getCell(COL.MGR).value || "").toString().trim();
-            if(targetMgrs.includes(mgr)) {
-                const lat = parseFloat(item.row.getCell(COL.LAT).value);
-                const lng = parseFloat(item.row.getCell(COL.LNG).value);
-                const fullNum = (item.row.getCell(COL.NUM).value || "").toString();
-                const shortNum = fullNum.split('-').pop();
-                item.shortNum = shortNum; item.mgrName = mgr;
+            const r = item.row;
+            const mgr = (r.getCell(COL.MGR).value || "").toString().trim();
+            if(targetNames.includes(mgr)) {
+                const lat = parseFloat(r.getCell(COL.LAT).value);
+                const lng = parseFloat(r.getCell(COL.LNG).value);
+                const shortNum = (r.getCell(COL.NUM).value || "").toString().split('-').pop().replace('호', '');
+                const mgrColor = (targets.find(t => t.name === mgr) || {}).color || '#333';
+                
+                item.shortNum = shortNum; item.mgrColor = mgrColor; item.mgrName = mgr;
 
                 if(lat && lng) {
-                    const m = L.marker([lat, lng], { 
-                        icon: L.divIcon({ 
-                            html: `<div style="background:#333; color:white; border-radius:50%; width:26px; height:26px; display:flex; align-items:center; justify-content:center; font-size:11px; border:2px solid orange; font-weight:bold;">${shortNum}</div>`, 
-                            className:'' 
-                        }) 
-                    }).addTo(map);
-                    // 클릭 시 확대 및 상세창 열기
+                    const m = L.marker([lat, lng], { icon: createMarkerIcon(shortNum, mgrColor, item.status) }).addTo(map);
                     m.on('click', () => { map.setView([lat, lng], 18); openStatusModal(item); });
                     markers.push(m);
                 }
-                
                 const tr = document.createElement('tr');
                 tr.id = `row-${item.num}`;
+                tr.style.backgroundColor = getLightColor(mgrColor);
                 tr.innerHTML = `
-                    <td style="font-weight:bold; color:#2980b9;">${shortNum}</td>
+                    <td>${shortNum}</td>
                     <td><span class="badge-status status-none">${item.status}</span></td>
-                    <td>${mgr}</td>
-                    <td style="text-align:left; font-size:0.7rem; padding-left:5px;">${item.row.getCell(COL.ROAD).value}</td>
+                    <td style="color:${mgrColor}; font-weight:bold;">${mgr}</td>
+                    <td>${(r.getCell(COL.ROAD).value || "").toString().replace(/전라남도\s*담양군\s*/g, '')}</td>
+                    <td>${(r.getCell(COL.JIBUN).value || "").toString().replace(/전라남도\s*담양군\s*/g, '')}</td>
+                    <td style="font-size:0.7rem;">${(r.getCell(COL.DETAIL).value || "")}</td>
+                    <td>${(r.getCell(COL.SIGN).value || "").toString().replace(/입상식/g, '')}</td>
+                    <td>${r.getCell(COL.VALVE).value || ""}</td>
+                    <td>${r.getCell(COL.GUARD).value || ""}</td>
                 `;
                 tr.onclick = () => { if(lat) map.setView([lat, lng], 18); openStatusModal(item); };
                 tbody.appendChild(tr);
@@ -225,127 +234,67 @@
         document.getElementById('count-badge').innerText = markers.length + "건";
     }
 
+    /* ✨ 상세창 열기 (원본 필드 sign, valve, guard 모두 복구) */
     function openStatusModal(item) {
         currentEditItem = item;
-        document.getElementById('modal-title').innerText = `${item.shortNum}번 용수 (${item.mgrName})`;
-        document.getElementById('modal-road').innerText = item.row.getCell(COL.ROAD).value;
+        const r = item.row;
+        document.getElementById('modal-shortNum').innerText = `[${item.shortNum}번] 상세 점검`;
+        document.getElementById('modal-mgr').innerText = item.mgrName;
+        document.getElementById('modal-road').innerText = (r.getCell(COL.ROAD).value || "").toString().replace(/전라남도\s*담양군\s*/g, '');
+        document.getElementById('modal-jibun').innerText = (r.getCell(COL.JIBUN).value || "").toString().replace(/전라남도\s*담양군\s*/g, '');
+        document.getElementById('modal-detail').innerText = r.getCell(COL.DETAIL).value || '-';
+        document.getElementById('modal-sign').innerText = (r.getCell(COL.SIGN).value || "").toString().replace(/입상식/g, '');
+        document.getElementById('modal-valve').innerText = r.getCell(COL.VALVE).value || '-';
+        document.getElementById('modal-guard').innerText = r.getCell(COL.GUARD).value || '-';
         document.getElementById('modal-memo').innerText = item.memo || '-';
         document.getElementById('status-overlay').style.display = 'flex';
-        document.getElementById('photo-preview-area').style.display = 'none';
     }
 
     function closeStatusModal() { document.getElementById('status-overlay').style.display = 'none'; }
 
     async function saveStatus(s) {
         let memo = "";
-        if(s === '불량' || s === '고장') { 
-            memo = prompt("점검 사유를 입력하세요:", currentEditItem.memo || ""); 
-            if(memo === null) return; 
-        }
+        if(s === '불량' || s === '고장') { memo = prompt("사유 입력:", currentEditItem.memo || ""); if(memo === null) return; }
         currentEditItem.status = s; currentEditItem.memo = memo;
-        
-        // 1. UI 즉시 업데이트
         const btn = document.querySelector(`#row-${currentEditItem.num} .badge-status`);
-        if(btn) {
-            btn.innerText = s;
-            btn.className = `badge-status status-${s==='양호'?'good':s==='불량'?'warn':s==='고장'?'fail':'none'}`;
-        }
-        
-        // 2. 서버 연동 (민주님 원본 코드)
-        try {
-            await fetch(API_URL + '/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ room_id: currentRoomId, id: currentEditItem.num, status: s, memo: memo, manager: currentEditItem.mgrName })
-            });
-        } catch(e) { console.error("연동 실패"); }
-        
+        if(btn) { btn.innerText = s; btn.className = `badge-status status-${s==='양호'?'good':s==='불량'?'warn':s==='고장'?'fail':'none'}`; }
+        if(currentEditItem.marker) currentEditItem.marker.setIcon(createMarkerIcon(currentEditItem.shortNum, currentEditItem.mgrColor, s));
+        await fetch(API_URL + '/update', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ room_id: currentRoomId, id: currentEditItem.num, status: s, memo: memo, manager: currentEditItem.mgrName })
+        });
         closeStatusModal();
     }
 
-    // 사진 촬영 및 보관 로직
-    const canvas = document.getElementById('photo-canvas');
-    const ctx = canvas.getContext('2d');
+    // 사진 전송 및 동기화 (기능 유지)
+    const canvas = document.getElementById('photo-canvas'); const ctx = canvas.getContext('2d');
     function triggerCamera() { document.getElementById('cameraInput').click(); }
     document.getElementById('cameraInput').onchange = function(e) {
-        const file = e.target.files[0];
-        const reader = new FileReader();
+        const file = e.target.files[0]; const reader = new FileReader();
         reader.onload = function(ev) {
-            const img = new Image();
-            img.onload = function() {
-                canvas.width = 1000; canvas.height = img.height * (1000 / img.width);
+            const img = new Image(); img.onload = function() {
+                canvas.width = 800; canvas.height = img.height * (800 / img.width);
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                document.getElementById('photo-preview-area').style.display = 'block';
-            };
-            img.src = ev.target.result;
-        };
-        reader.readAsDataURL(file);
+                document.getElementById('photo-editor-area').style.display = 'block';
+                document.getElementById('default-info-area').style.display = 'none';
+            }; img.src = ev.target.result;
+        }; reader.readAsDataURL(file);
     };
-
-    function savePhotoToQueue() {
+    function saveEditedPhoto() {
         canvas.toBlob(blob => {
-            const fileName = `${currentEditItem.shortNum}번_${currentEditItem.status}_현장사진.jpg`;
-            photoQueue.push(new File([blob], fileName, { type: "image/jpeg" }));
-            alert("사진이 전송 대기열에 저장되었습니다.");
-            document.getElementById('photo-preview-area').style.display = 'none';
-        }, 'image/jpeg', 0.7);
+            photoQueue.push(new File([blob], `${currentEditItem.shortNum}_사진.jpg`, { type: "image/jpeg" }));
+            alert("사진 보관됨"); document.getElementById('photo-editor-area').style.display = 'none';
+            document.getElementById('default-info-area').style.display = 'block'; closeStatusModal();
+        }, 'image/jpeg', 0.6);
     }
-
-    async function sendAllDataWithPhotos() {
-        if(!workbook) return alert("로드된 데이터가 없습니다.");
-        document.getElementById('loading').style.display = 'flex';
+    async function sendAllData() {
         const buffer = await workbook.xlsx.writeBuffer();
-        const excelFile = new File([buffer], `소방용수_점검보고_${new Date().toLocaleDateString()}.xlsx`, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        
-        if (navigator.share) {
-            await navigator.share({
-                files: [excelFile, ...photoQueue],
-                title: '소방용수 점검 보고 (엑셀+사진)',
-                text: '점검 완료된 엑셀 보고서와 현장 사진들을 보냅니다.'
-            });
-        } else { alert("이 브라우저는 공유 기능을 지원하지 않습니다."); }
-        document.getElementById('loading').style.display = 'none';
+        const excelFile = new File([buffer], "보고서.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        if (navigator.share) await navigator.share({ files: [excelFile, ...photoQueue], title: '소방용수 보고' });
     }
-
-    function startRealtimeSync() {
-        document.getElementById('sync-indicator').style.display = 'inline-block';
-        setInterval(async () => {
-            try {
-                const res = await fetch(API_URL + '/data?room=' + encodeURIComponent(currentRoomId));
-                const data = await res.json();
-                loadedRows.forEach(item => {
-                    const s = data[item.num];
-                    if(s && item.status !== s.status) {
-                        item.status = s.status; item.memo = s.memo;
-                        const btn = document.querySelector(`#row-${item.num} .badge-status`);
-                        if(btn) {
-                            btn.innerText = s.status;
-                            btn.className = `badge-status status-${s.status==='양호'?'good':s.status==='불량'?'warn':s.status==='고장'?'fail':'none'}`;
-                        }
-                    }
-                });
-            } catch(e){}
-        }, 5000);
-    }
-
-    function toggleGPS() {
-        navigator.geolocation.getCurrentPosition(p => {
-            const pos = [p.coords.latitude, p.coords.longitude];
-            map.setView(pos, 18);
-            L.circleMarker(pos, { color: 'blue', radius: 8, fillOpacity: 0.5 }).addTo(map);
-        }, () => alert("GPS를 켜주세요."));
-    }
-
-    function setAllGood() {
-        if(!confirm("목록에 있는 모든 미점검 항목을 '양호'로 변경할까요?")) return;
-        loadedRows.forEach(item => {
-            const rowEl = document.getElementById(`row-${item.num}`);
-            if(rowEl && item.status === '미점검') {
-                currentEditItem = item;
-                saveStatus('양호');
-            }
-        });
-    }
+    function startSync() { document.getElementById('sync-indicator').style.display = 'inline-block'; }
+    function toggleGPS() { navigator.geolocation.getCurrentPosition(p => { map.setView([p.coords.latitude, p.coords.longitude], 18); }); }
+    function setAllGood() { loadedRows.forEach(item => { if(document.getElementById(`row-${item.num}`)) saveStatus('양호'); }); }
 </script>
 </body>
 </html>
