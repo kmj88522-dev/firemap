@@ -54,15 +54,30 @@
     #photo-canvas-container { width: 100%; overflow: hidden; margin-top: 10px; border: 2px solid #ddd; display: none; touch-action: none; }
     #photo-canvas { width: 100%; height: auto; display: block; cursor: crosshair; }
     @media (max-width: 768px) {
-        #container { flex-direction: column; overflow: hidden; height: calc(100dvh - 40px); }
-        #left-panel { flex-direction: row; width: 100%; height: auto; padding: 5px; border-right: none; border-bottom: 2px solid #2980b9; gap: 5px; align-items: center; z-index: 100; overflow-x: auto;}
-        #drop-zone { flex: 1; padding: 5px; min-height: 40px; flex-direction: row; gap: 10px; margin: 0; min-width:120px;}
-        #drop-zone .icon { font-size: 1.2rem; margin: 0; }
-        #file-status { font-size: 0.75rem; text-align: left; }
-        .action-btns { display: flex; flex-direction: column; gap: 3px; min-width: 130px; }
-        .action-btns button { padding: 5px; font-size: 0.75rem; margin: 0; }
-        #map-wrapper { flex: 1; min-height: 40vh; width: 100%; z-index: 1; }
-        #right-panel { height: 42vh; width: 100%; border-left: none; border-top: 2px solid #34495e; position: relative; overflow: hidden; z-index: 10; }
+    #container { flex-direction: column; height: calc(100dvh - 40px); }
+    
+    /* 1. 상단 버튼 바: 높이를 고정하지 않고 내용에 맞게 늘어나도록 수정 */
+    #left-panel { 
+        flex-direction: row; width: 100%; height: auto; 
+        padding: 8px; border-bottom: 2px solid #2980b9; 
+        gap: 8px; z-index: 100; overflow-x: auto; flex-wrap: nowrap;
+    }
+    
+    /* 2. 드롭존: 모바일에서 너무 크지 않게 조절 */
+    #drop-zone { flex: 0 0 auto; width: 100px; padding: 5px; min-height: 50px; }
+    
+    /* 3. 버튼 뭉치: 가로로 나열되게 하여 가림 방지 */
+    .action-btns { 
+        display: flex; flex-direction: row; flex: 1; 
+        gap: 5px; min-width: 250px; 
+    }
+    .action-btns button { flex: 1; padding: 10px 5px; font-size: 0.75rem; margin: 0; height: 100%; }
+
+    #map-wrapper { flex: 1; width: 100%; z-index: 1; }
+    
+    /* 4. 하단 패널: 위치 확실히 고정 */
+    #right-panel { height: 35vh; width: 100%; border-top: 2px solid #34495e; }
+}
     }
 </style>
 </head>
@@ -566,3 +581,4 @@
 </script>
 </body>
 </html>
+
