@@ -6,33 +6,37 @@
     <title>소방용수 통합관제 v85</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        body { margin: 0; padding: 0; font-family: 'Malgun Gothic', sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        .top-nav { background-color: #343a40; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
+        /* 상단 네비게이션 바 */
+        .top-nav { background-color: #343a40; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
         .top-nav h1 { margin: 0; font-size: 16px; display: flex; align-items: center; }
         .status-badge { background-color: #28a745; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; }
 
+        /* 컨트롤 패널: 파일명 & 버튼 영역 */
         .control-panel { 
             display: flex; justify-content: space-between; align-items: center; 
-            padding: 8px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6; gap: 10px; 
+            padding: 8px; background-color: #f8f9fa; border-bottom: 1px solid #dee2e6; gap: 8px; z-index: 10;
         }
         
-        /* 파일명 길어짐 방지 (말줄임표 처리) */
+        /* [핵심 수정] 파일명이 길어도 버튼을 밀어내지 않게 처리 */
         .file-info { 
             flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
-            color: #007bff; font-size: 14px; border: 1px dashed #ccc; padding: 4px;
+            color: #007bff; font-size: 13px; border: 1px dashed #ccc; padding: 6px; background: white;
         }
 
+        /* 버튼 그룹 고정 */
         .btn-group { display: flex; flex-shrink: 0; gap: 5px; }
-        .btn { padding: 6px 10px; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; color: white; }
+        .btn { padding: 6px 8px; border: none; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; color: white; }
         .btn-mail { background-color: #17a2b8; }
         .btn-excel { background-color: #28a745; }
-        .btn-reset { background-color: #6c757d; }
         .btn-photo { background-color: #ffc107; color: #333; }
 
+        /* 지도 영역 */
         #map { flex: 1; width: 100%; z-index: 1; }
 
-        .bottom-panel { height: 35%; background: white; display: flex; flex-direction: column; z-index: 2; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
+        /* 하단 용수 목록 패널 */
+        .bottom-panel { height: 35%; background: white; display: flex; flex-direction: column; z-index: 5; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
         .panel-header { background: #495057; color: white; padding: 8px; display: flex; justify-content: space-between; align-items: center; }
         .list-container { flex: 1; overflow-y: auto; padding: 0; margin: 0; list-style: none; }
         .list-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; font-size: 13px; justify-content: space-between; align-items: center;}
@@ -51,7 +55,7 @@
     <div class="control-panel">
         <div class="file-info" id="fileNameDisplay">2026년 1분기 담양군 소방용수시설 관리대장(담양)(김민주).xlsx</div>
         <div class="btn-group">
-            <button class="btn btn-photo" onclick="takePhoto()">📷 사진</button>
+            <button class="btn btn-photo" onclick="takePhoto()">📷 사진찍기</button>
             <button class="btn btn-mail" onclick="sendAllData()">공직자메일 전송</button>
             <button class="btn btn-excel">엑셀 저장</button>
         </div>
@@ -63,32 +67,36 @@
 
     <div class="bottom-panel">
         <div class="panel-header">
-            <span>📋 용수 목록 <button style="background:#28a745; color:white; border:none; border-radius:3px; padding:2px 5px; font-size:11px;">일괄 양호 ✔</button></span>
-            <span style="background:#fd7e14; padding:2px 8px; border-radius:10px; font-size:12px;" id="photoCountBadge">찍은 사진: 0장</span>
+            <span>📋 용수 목록 <button style="background:#28a745; color:white; border:none; border-radius:3px; padding:2px 5px; font-size:11px; margin-left:5px;">일괄 양호 ✔</button></span>
+            <span style="background:#fd7e14; padding:3px 8px; border-radius:10px; font-size:12px; font-weight:bold;" id="photoCountBadge">사진: 0장</span>
         </div>
-        <div class="list-container">
-            <div class="list-item">028 | 미점검 | 담양읍 시산2길 2</div>
-            <div class="list-item">029 | 양호 | 담양읍 양각샛터길 2-7</div>
+        <div class="list-container" id="waterSupplyList">
+            <div class="list-item" style="justify-content: center; color: #888;">엑셀 파일을 불러오면 목록이 표시됩니다.</div>
         </div>
     </div>
-
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // 지도 초기화
+        // ==========================================
+        // 1. 지도 초기화 (담양 인근 좌표 기준)
+        // ==========================================
         const map = L.map('map').setView([35.3218, 126.9880], 15);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
 
         // ==========================================
-        // 1. 사진 백그라운드 자동 압축 및 보관
+        // 2. 사진 백그라운드 자동 압축 및 보관 로직
         // ==========================================
         const cameraInput = document.getElementById('cameraInput');
-        let photoQueue = []; // 압축된 사진 파일 객체를 담을 배열
+        let photoQueue = []; // 압축된 사진들을 조용히 모아둘 배열 (보관함)
         let photoCount = 0;
 
+        // '📷 사진찍기' 버튼 클릭 시 카메라 호출
         function takePhoto() {
             cameraInput.click();
         }
 
+        // 사진이 촬영되면 바로 실행되는 숨겨진 로직
         cameraInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -100,7 +108,7 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // 가로 최대 1024px로 리사이징
+                    // 가로폭 최대 1024px로 제한하여 용량 자동 최적화
                     const MAX_WIDTH = 1024;
                     let width = img.width;
                     let height = img.height;
@@ -113,70 +121,72 @@
                     canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    // 품질 70%로 즉시 압축 및 배열에 추가
+                    // 확인 팝업 없이 즉시 압축(품질 70%) 후 보관함에 쏙 넣기
                     canvas.toBlob(function(blob) {
                         photoCount++;
-                        // File 객체로 변환하여 배열에 저장
                         const compressedFile = new File([blob], `점검사진_${photoCount}.jpg`, { type: 'image/jpeg' });
                         photoQueue.push(compressedFile);
                         
-                        // 화면 뱃지 업데이트
-                        document.getElementById('photoCountBadge').innerText = `찍은 사진: ${photoCount}장`;
-                        console.log(`사진 저장됨: ${compressedFile.name} (${Math.round(compressedFile.size/1024)}KB)`);
+                        // 하단 목록 패널에 사진 몇 장 찍었는지 숫자만 업데이트
+                        document.getElementById('photoCountBadge').innerText = `사진: ${photoCount}장`;
+                        console.log(`사진 저장 완료: ${compressedFile.name} (${Math.round(compressedFile.size/1024)}KB)`);
                     }, 'image/jpeg', 0.7);
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
             
-            e.target.value = ''; // 같은 사진 재촬영 가능하게 초기화
+            // 연속해서 사진을 찍을 수 있도록 인풋 초기화
+            e.target.value = ''; 
         });
-
         // ==========================================
-        // 2. 스마트폰 앱(이메일 등)으로 파일 일괄 공유 (Web Share API)
+        // 3. 스마트폰 앱(이메일 등)으로 파일 일괄 공유 (Web Share API)
         // ==========================================
         function sendAllData() {
             if (photoQueue.length === 0) {
                 if(!confirm("찍은 사진이 없습니다. 엑셀 파일만 전송할까요?")) return;
             }
 
-            // [임시 엑셀 파일 생성] 
-            // ※ 실제 적용 시에는 기존에 사용하시던 SheetJS 등으로 만든 엑셀 Blob을 여기에 넣으시면 됩니다.
-            const dummyContent = "이것은 점검 결과 엑셀 데이터입니다.";
+            // [임시 엑셀 파일 생성 영역] 
+            // ※ 주의: 실제 현장 데이터가 담긴 엑셀을 보내시려면, 
+            // 기존에 쓰시던 SheetJS 등의 엑셀 생성 로직(Blob)을 이 부분과 교체하셔야 합니다.
+            const dummyContent = "이것은 임시 점검 결과 엑셀 데이터입니다.";
             const excelBlob = new Blob([dummyContent], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             const excelFile = new File([excelBlob], '소방용수_점검결과.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-            // 엑셀 파일과 그동안 모아둔 사진들을 하나의 배열로 합침
+            // 엑셀 파일 하나와, 그동안 모아둔 사진(배열)들을 하나의 큰 꾸러미로 합칩니다.
             const filesToShare = [excelFile, ...photoQueue];
 
-            // 스마트폰 브라우저가 파일 공유 기능을 지원하는지 체크
+            // 스마트폰 브라우저가 파일 공유(Share) 기능을 지원하는지 검사
             if (navigator.canShare && navigator.canShare({ files: filesToShare })) {
                 
                 const mailBtn = document.querySelector('.btn-mail');
-                mailBtn.innerText = "앱 여는 중...";
+                mailBtn.innerText = "앱 여는 중..."; // 진행상태 표시
 
+                // 스마트폰 하단에서 공유 메뉴 띄우기
                 navigator.share({
                     files: filesToShare,
                     title: '소방용수 점검결과',
-                    // 메일 앱이 열렸을 때 본문에 들어갈 내용 (주소를 복사하기 쉽게 적어둠)
+                    // 메일 앱이 열리면 본문에 아래 내용이 자동으로 들어갑니다.
+                    // 주소를 꾹 눌러 복사하기 쉽게 만들어 두었습니다.
                     text: '소방용수 점검결과 엑셀 및 사진 파일입니다.\n\n▶ 받는 사람 주소 복사용:\nkmj88522@korea.kr' 
                 })
                 .then(() => {
-                    console.log('이메일/공유 앱으로 파일 전달 성공');
-                    // 공유 완료 후 사진 보관함 초기화 (새로운 점검을 위해)
+                    console.log('이메일/공유 앱으로 파일 묶음 전달 성공');
+                    // 공유가 무사히 끝나면 다음 점검을 위해 사진 보관함을 싹 비웁니다.
                     photoQueue = [];
                     photoCount = 0;
-                    document.getElementById('photoCountBadge').innerText = "찍은 사진: 0장";
+                    document.getElementById('photoCountBadge').innerText = "사진: 0장";
                 })
                 .catch((error) => {
-                    console.log('공유 취소 또는 에러:', error);
+                    console.log('공유를 취소했거나 에러가 발생했습니다:', error);
                 })
                 .finally(() => {
-                    mailBtn.innerText = "공직자메일 전송";
+                    mailBtn.innerText = "공직자메일 전송"; // 버튼 이름 원상복구
                 });
 
             } else {
-                alert('현재 사용 중인 브라우저에서는 파일 다중 공유 기능을 지원하지 않습니다. 스마트폰의 크롬이나 삼성 인터넷을 사용해주세요.');
+                alert('현재 브라우저에서는 파일 다중 공유 기능을 지원하지 않습니다. 스마트폰의 크롬이나 삼성 인터넷 앱을 사용해주세요.');
             }
         }
     </script>
